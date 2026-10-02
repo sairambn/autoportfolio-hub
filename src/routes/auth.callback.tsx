@@ -1,6 +1,11 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { fetchGithubUser, saveSession } from "@/lib/auth";
+import {
+  fetchGithubUser,
+  fetchGoogleUser,
+  saveSession,
+  type AuthProvider,
+} from "@/lib/auth";
 
 export const Route = createFileRoute("/auth/callback")({
   head: () => ({
@@ -17,23 +22,36 @@ function Callback() {
     const params = new URLSearchParams(window.location.search);
     const err = params.get("error");
     const token = params.get("token");
+    const provider = (params.get("provider") || "github") as AuthProvider;
+
     if (err) {
-      setMsg(err);
+      setMsg(decodeURIComponent(err));
       return;
     }
     if (!token) {
       setMsg("Missing token. Try signing in again.");
       return;
     }
+
     (async () => {
       try {
-        const user = await fetchGithubUser(token);
-        saveSession({
-          token,
-          user,
-          expiresAt: Date.now() + 1000 * 60 * 60 * 24 * 30,
-        });
-        // Clean URL so token isn't left in history
+        if (provider === "google") {
+          const user = await fetchGoogleUser(token);
+          saveSession({
+            token,
+            user,
+            provider: "google",
+            expiresAt: Date.now() + 1000 * 60 * 60 * 24 * 30,
+          });
+        } else {
+          const user = await fetchGithubUser(token);
+          saveSession({
+            token,
+            user,
+            provider: "github",
+            expiresAt: Date.now() + 1000 * 60 * 60 * 24 * 30,
+          });
+        }
         window.history.replaceState({}, "", "/auth/callback");
         nav({ to: "/dashboard" });
       } catch (e) {

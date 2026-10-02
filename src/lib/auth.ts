@@ -1,16 +1,23 @@
-export type GithubUser = {
+export type AuthProvider = "github" | "google" | "guest";
+
+export type AppUser = {
   id: number;
   login: string;
   name: string | null;
   avatar_url: string;
   html_url: string;
   email: string | null;
+  provider?: AuthProvider;
 };
+
+/** @deprecated use AppUser — kept for older imports */
+export type GithubUser = AppUser;
 
 export type AuthSession = {
   token: string;
-  user: GithubUser;
+  user: AppUser;
   expiresAt: number;
+  provider?: AuthProvider;
 };
 
 const KEY = "folio_github_session";
@@ -39,7 +46,12 @@ export function clearSession() {
 }
 
 export function isGuestSession(session: AuthSession | null | undefined) {
-  return !session?.token || session.user.login === "guest";
+  return (
+    !session?.token ||
+    session.user.login === "guest" ||
+    session.provider === "guest" ||
+    session.user.provider === "guest"
+  );
 }
 
 /** Instant start — no account. Drafts stay in this browser. */
@@ -48,6 +60,7 @@ export function ensureGuestSession(): AuthSession {
   if (existing) return existing;
   const session: AuthSession = {
     token: "",
+    provider: "guest",
     user: {
       id: 0,
       login: "guest",
@@ -55,6 +68,7 @@ export function ensureGuestSession(): AuthSession {
       avatar_url: "",
       html_url: "",
       email: null,
+      provider: "guest",
     },
     expiresAt: Date.now() + 1000 * 60 * 60 * 24 * 365,
   };
@@ -62,7 +76,7 @@ export function ensureGuestSession(): AuthSession {
   return session;
 }
 
-export async function fetchGithubUser(token: string): Promise<GithubUser> {
+export async function fetchGithubUser(token: string): Promise<AppUser> {
   const res = await fetch("https://api.github.com/user", {
     headers: {
       Accept: "application/vnd.github+json",
@@ -78,7 +92,7 @@ export async function fetchGithubUser(token: string): Promise<GithubUser> {
         : `GitHub profile failed (${res.status}): ${t}`,
     );
   }
-  const u = (await res.json()) as GithubUser;
+  const u = (await res.json()) as AppUser;
   return {
     id: u.id,
     login: u.login,
@@ -86,10 +100,54 @@ export async function fetchGithubUser(token: string): Promise<GithubUser> {
     avatar_url: u.avatar_url,
     html_url: u.html_url,
     email: u.email ?? null,
+    provider: "github",
   };
 }
 
-/** Sign in with a personal access token. */
+function hashId(s: string): number {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (Math.imul(31, h) + s.charCodeAt(i)) | 0;
+  return Math.abs(h) || 1;
+}
+
+export async function fetchGoogleUser(accessToken: string): Promise<AppUser> {
+  const res = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!res.ok) {
+    const t = await res.text();
+    throw new Error(
+      res.status === 401
+        ? "Invalid or expired Google token"
+        : `Google profile failed (${res.status}): ${t}`,
+    );
+  }
+  const u = (await res.json()) as {
+    sub: string;
+    name?: string;
+    email?: string;
+    picture?: string;
+    given_name?: string;
+  };
+  const email = u.email ?? null;
+  const local =
+    (email?.split("@")[0] || u.given_name || u.name || "user")
+      .toLowerCase()
+      .replace(/[^a-z0-9._-]/g, "-")
+      .replace(/-+/g, "-")
+      .slice(0, 32) || "user";
+  return {
+    id: hashId(u.sub),
+    login: `g_${local}`,
+    name: u.name ?? null,
+    avatar_url: u.picture ?? "",
+    html_url: email ? `mailto:${email}` : "",
+    email,
+    provider: "google",
+  };
+}
+
+/** Sign in with a GitHub personal access token. */
 export async function signInWithToken(token: string) {
   const clean = token.trim();
   if (!clean) throw new Error("Paste a GitHub token");
@@ -97,13 +155,20 @@ export async function signInWithToken(token: string) {
   saveSession({
     token: clean,
     user,
+    provider: "github",
     expiresAt: Date.now() + 1000 * 60 * 60 * 24 * 90,
   });
   return user;
 }
 
-/** Start GitHub OAuth (needs GITHUB_CLIENT_ID on the server). */
+/** Start GitHub OAuth (needs GITHUB_CLIENT_ID / SECRET on the server). */
 export function startGithubLogin() {
   const returnTo = encodeURIComponent(window.location.origin + "/auth/callback");
   window.location.href = `/api/auth/github?return_to=${returnTo}`;
+}
+
+/** Start Google OAuth (needs GOOGLE_CLIENT_ID / SECRET on the server). */
+export function startGoogleLogin() {
+  const returnTo = encodeURIComponent(window.location.origin + "/auth/callback");
+  window.location.href = `/api/auth/google?return_to=${returnTo}`;
 }
