@@ -1,22 +1,20 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { ArrowRight, Download, Github, Palette, Rows3, Zap } from "lucide-react";
+import { ArrowRight, FileText, ImagePlus, Rocket } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { ensureGuestSession } from "@/lib/auth";
-import { createPortfolio } from "@/lib/storage";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Folio — Build a portfolio in minutes" },
+      { title: "Folio — Portfolio from your resume in minutes" },
       {
         name: "description",
         content:
-          "No account needed. Design your portfolio, download a single HTML file, or publish to GitHub Pages.",
+          "Enter details, upload photo and resume, get a portfolio website deployed online.",
       },
-      { property: "og:title", content: "Folio — Build a portfolio in minutes" },
+      { property: "og:title", content: "Folio — Portfolio from your resume" },
       {
         property: "og:description",
-        content: "Templates, colors, sections. Download HTML or publish to GitHub.",
+        content: "Photo + resume → live portfolio website.",
       },
     ],
   }),
@@ -25,16 +23,6 @@ export const Route = createFileRoute("/")({
 
 function Landing() {
   const nav = useNavigate();
-
-  function startNow() {
-    const session = ensureGuestSession();
-    const p = createPortfolio(session.user.login, { title: "My Portfolio" });
-    // Prefer a friendly blank slate for guests
-    if (session.user.login === "guest") {
-      // storage already set name from login; editor can refine
-    }
-    nav({ to: "/editor/$id", params: { id: p.id } });
-  }
 
   return (
     <div className="min-h-screen grain">
@@ -46,29 +34,26 @@ function Landing() {
           <Button asChild variant="ghost">
             <Link to="/auth">Sign in</Link>
           </Button>
-          <Button variant="block" onClick={startNow}>
-            Start free
+          <Button variant="block" onClick={() => nav({ to: "/create" })}>
+            Create portfolio
           </Button>
         </div>
       </nav>
 
       <header className="mx-auto max-w-6xl px-6 pb-20 pt-16">
         <p className="animate-rise mb-6 inline-block rounded-full border-2 border-ink bg-accent px-4 py-1 text-sm font-semibold">
-          No account required
+          Photo + resume → live website
         </p>
         <h1 className="animate-rise max-w-4xl text-6xl font-black leading-[0.95] tracking-tight md:text-8xl">
-          Build your portfolio. <em className="text-primary">Download the file.</em>
+          Enter your details. <em className="text-primary">Get a portfolio site.</em>
         </h1>
         <p className="animate-rise mt-8 max-w-xl text-lg text-muted-foreground">
-          Fill in your name, projects, and skills. Get one HTML file you can open anywhere — email it,
-          host it, or drop it on GitHub Pages. Optional sign-in only if you want auto-publish.
+          Upload a photo and resume, review the auto-filled profile, pick a style, and deploy a
+          public portfolio URL — free on GitHub Pages.
         </p>
         <div className="animate-rise mt-10 flex flex-wrap gap-4">
-          <Button variant="block" size="lg" onClick={startNow}>
-            Build now <ArrowRight />
-          </Button>
-          <Button asChild variant="blockOutline" size="lg">
-            <Link to="/auth">I have GitHub</Link>
+          <Button variant="block" size="lg" onClick={() => nav({ to: "/create" })}>
+            Start now <ArrowRight />
           </Button>
         </div>
       </header>
@@ -76,19 +61,19 @@ function Landing() {
       <section className="mx-auto grid max-w-6xl gap-6 px-6 pb-24 md:grid-cols-3">
         {[
           {
-            icon: Zap,
-            t: "Start in 10 seconds",
-            d: "No signup form. Click Build now and edit immediately.",
+            icon: ImagePlus,
+            t: "1. Photo + resume",
+            d: "Upload a picture and paste or upload your resume text.",
           },
           {
-            icon: Download,
-            t: "One-file download",
-            d: "Export a complete index.html with your design baked in.",
+            icon: FileText,
+            t: "2. We build it",
+            d: "Name, skills, experience and projects are filled in automatically.",
           },
           {
-            icon: Github,
-            t: "Optional GitHub Pages",
-            d: "Later, sign in once to push a live URL — only if you want.",
+            icon: Rocket,
+            t: "3. Deploy live",
+            d: "One step publishes a public website URL you can share.",
           },
         ].map(({ icon: I, t, d }) => (
           <div key={t} className="block-card p-6">
@@ -97,20 +82,6 @@ function Landing() {
             <p className="mt-2 text-muted-foreground">{d}</p>
           </div>
         ))}
-      </section>
-
-      <section className="mx-auto max-w-6xl px-6 pb-24">
-        <div className="block-card flex flex-col items-start gap-4 p-8 md:flex-row md:items-center md:justify-between">
-          <div>
-            <h2 className="text-2xl font-black">How people use Folio</h2>
-            <p className="mt-1 text-muted-foreground">
-              1) Edit → 2) Download HTML → 3) Upload anywhere (or publish to GitHub).
-            </p>
-          </div>
-          <Button variant="block" onClick={startNow}>
-            Try it free
-          </Button>
-        </div>
       </section>
     </div>
   );
