@@ -11,6 +11,7 @@ import {
   Upload,
 } from "lucide-react";
 import { toast } from "sonner";
+import { PortfolioView } from "@/components/PortfolioView";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -35,7 +36,7 @@ export const Route = createFileRoute("/create")({
       {
         name: "description",
         content:
-          "Upload photo and PDF resume in your browser. Nothing is stored on our servers.",
+          "Upload photo and PDF resume. Edits update your portfolio website instantly.",
       },
     ],
   }),
@@ -65,7 +66,6 @@ function CreateWizard() {
     setContent((c) => ({ ...c, contact: { ...c.contact, [key]: value } }));
   }
 
-  /** Drop file inputs + paste buffer so PDF/bytes are not kept in the UI. */
   function wipeUploadMemory() {
     setResumePaste("");
     setResumeNote("");
@@ -83,7 +83,7 @@ function CreateWizard() {
       const url = await fileToDataUrl(file);
       patch({ avatarUrl: url });
       if (photoInputRef.current) photoInputRef.current.value = "";
-      toast.success("Photo added (kept only in this browser until you deploy)");
+      toast.success("Photo added");
     } catch {
       toast.error("Could not read photo");
     }
@@ -94,7 +94,6 @@ function CreateWizard() {
     setBusy(true);
     try {
       const text = await readResumeFile(file);
-      // Clear file input immediately — PDF bytes leave the input
       if (resumeInputRef.current) resumeInputRef.current.value = "";
       if (!text.trim()) {
         setResumeNote("Could not read text from that file. Try another PDF or paste text.");
@@ -102,9 +101,7 @@ function CreateWizard() {
         return;
       }
       applyResume(text);
-      setResumeNote(
-        `Imported from ${file.name} in your browser only — file was not uploaded to our servers.`,
-      );
+      setResumeNote(`Imported from ${file.name} — check the live preview on the next step.`);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not read resume");
       setResumeNote("PDF read failed. Paste resume text instead.");
@@ -115,20 +112,41 @@ function CreateWizard() {
 
   function applyResume(text: string) {
     const parsed = parseResumeText(text);
-    setContent((c) => ({
-      ...c,
-      name: parsed.name || c.name,
-      headline: parsed.headline || c.headline,
-      bio: parsed.bio || c.bio,
-      skills: parsed.skills?.length ? parsed.skills : c.skills,
-      experience: parsed.experience?.length ? parsed.experience : c.experience,
-      projects: parsed.projects?.length ? parsed.projects : c.projects,
-      githubUsername: parsed.githubUsername || c.githubUsername,
-      contact: { ...c.contact, ...(parsed.contact ?? {}) },
-    }));
-    // Do not keep full resume text in state after parse
+    setContent((c) => {
+      const next: Content = {
+        ...c,
+        name: parsed.name || c.name,
+        headline: parsed.headline || c.headline,
+        bio: parsed.bio || c.bio,
+        skills: parsed.skills?.length ? parsed.skills : c.skills,
+        experience: parsed.experience?.length ? parsed.experience : c.experience,
+        projects: parsed.projects?.length ? parsed.projects : c.projects,
+        githubUsername: parsed.githubUsername || c.githubUsername,
+        contact: {
+          ...c.contact,
+          email: parsed.contact?.email || c.contact.email,
+          website: parsed.contact?.website || c.contact.website,
+          github: parsed.contact?.github || c.contact.github,
+          linkedin: parsed.contact?.linkedin || c.contact.linkedin,
+          twitter: c.contact.twitter,
+        },
+      };
+      // If name still default but email found, force name from email
+      if ((!parsed.name || next.name === "Your Name") && next.contact.email) {
+        const local = next.contact.email.split("@")[0] || "";
+        const parts = local
+          .split(/[._+-]/)
+          .filter((p) => p.length > 1 && !/^(data|bytes|mail|info|dev|admin)$/i.test(p));
+        if (parts.length) {
+          next.name = parts
+            .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+            .join(" ");
+        }
+      }
+      return next;
+    });
     setResumePaste("");
-    toast.success("Resume imported");
+    toast.success("Resume applied to portfolio");
   }
 
   async function buildPortfolio() {
@@ -146,10 +164,9 @@ function CreateWizard() {
         title: content.name || "My Portfolio",
       });
       setPortfolioId(p.id);
-      // Drop resume paste / file handles from memory after build
       wipeUploadMemory();
       setStep(4);
-      toast.success("Portfolio built — upload data cleared from this form");
+      toast.success("Portfolio built");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Build failed");
     }
@@ -210,27 +227,29 @@ function CreateWizard() {
         content,
       });
       setLiveUrl(result.pagesUrl);
-      // Token and upload leftovers leave form memory after successful deploy
       setToken("");
       wipeUploadMemory();
-      toast.success("Live website deployed — token cleared from this page");
+      toast.success("Live website deployed");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Deploy failed");
     }
     setBusy(false);
   }
 
+  const previewTheme = TEMPLATES[template].theme;
+  const previewSections = defaultSections();
+
   return (
     <div className="min-h-screen grain">
-      <nav className="mx-auto flex max-w-2xl items-center justify-between px-6 py-6">
+      <nav className="mx-auto flex max-w-6xl items-center justify-between px-6 py-6">
         <Link to="/" className="font-display text-2xl font-black italic">
           Folio.
         </Link>
         <span className="text-sm text-muted-foreground">Step {step} of 4</span>
       </nav>
 
-      <main className="mx-auto max-w-2xl px-6 pb-24">
-        <div className="mb-8 flex gap-2">
+      <main className="mx-auto max-w-6xl px-6 pb-24">
+        <div className="mx-auto mb-8 flex max-w-2xl gap-2">
           {([1, 2, 3, 4] as Step[]).map((s) => (
             <div
               key={s}
@@ -240,11 +259,10 @@ function CreateWizard() {
         </div>
 
         {step === 1 && (
-          <section className="space-y-6">
+          <section className="mx-auto max-w-2xl space-y-6">
             <h1 className="text-4xl font-black">Your details</h1>
             <p className="text-muted-foreground">
-              Photo and PDF are read <strong>only in your browser</strong>. Nothing is stored on
-              Vercel — after you build, upload data is cleared from this form.
+              Upload a PDF resume — we fill the portfolio fields. Everything stays in your browser.
             </p>
 
             <div className="grid gap-4 sm:grid-cols-2">
@@ -308,71 +326,99 @@ function CreateWizard() {
         )}
 
         {step === 2 && (
-          <section className="space-y-5">
-            <h1 className="text-4xl font-black">Review details</h1>
-            <p className="text-muted-foreground">Edit anything that looks wrong.</p>
+          <section className="grid gap-8 lg:grid-cols-2">
+            <div className="space-y-5">
+              <h1 className="text-4xl font-black">Review details</h1>
+              <p className="text-muted-foreground">
+                Edit fields on the left — the portfolio on the right updates immediately.
+              </p>
 
-            <div className="space-y-3">
-              <div>
-                <Label className="mb-1 block">Full name</Label>
-                <Input value={content.name} onChange={(e) => patch({ name: e.target.value })} />
+              <div className="space-y-3">
+                <div>
+                  <Label className="mb-1 block">Full name</Label>
+                  <Input value={content.name} onChange={(e) => patch({ name: e.target.value })} />
+                </div>
+                <div>
+                  <Label className="mb-1 block">Headline</Label>
+                  <Input
+                    value={content.headline}
+                    onChange={(e) => patch({ headline: e.target.value })}
+                    placeholder="e.g. Frontend developer"
+                  />
+                </div>
+                <div>
+                  <Label className="mb-1 block">About you</Label>
+                  <Textarea
+                    rows={4}
+                    value={content.bio}
+                    onChange={(e) => patch({ bio: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <Label className="mb-1 block">Skills (comma separated)</Label>
+                  <Input
+                    value={content.skills.join(", ")}
+                    onChange={(e) =>
+                      patch({
+                        skills: e.target.value
+                          .split(",")
+                          .map((s) => s.trim())
+                          .filter(Boolean),
+                      })
+                    }
+                  />
+                </div>
+                <div>
+                  <Label className="mb-1 block">Email</Label>
+                  <Input
+                    value={content.contact.email}
+                    onChange={(e) => patchContact("email", e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label className="mb-1 block">GitHub username (optional)</Label>
+                  <Input
+                    value={content.githubUsername}
+                    onChange={(e) => patch({ githubUsername: e.target.value.trim() })}
+                    placeholder="your-handle"
+                  />
+                </div>
+                {content.experience.length > 0 ? (
+                  <p className="text-xs text-muted-foreground">
+                    {content.experience.length} experience entr{content.experience.length === 1 ? "y" : "ies"}{" "}
+                    imported from resume (editable later in the full editor).
+                  </p>
+                ) : null}
               </div>
-              <div>
-                <Label className="mb-1 block">Headline</Label>
-                <Input
-                  value={content.headline}
-                  onChange={(e) => patch({ headline: e.target.value })}
-                  placeholder="e.g. Frontend developer"
-                />
-              </div>
-              <div>
-                <Label className="mb-1 block">About you</Label>
-                <Textarea rows={4} value={content.bio} onChange={(e) => patch({ bio: e.target.value })} />
-              </div>
-              <div>
-                <Label className="mb-1 block">Skills (comma separated)</Label>
-                <Input
-                  value={content.skills.join(", ")}
-                  onChange={(e) =>
-                    patch({
-                      skills: e.target.value
-                        .split(",")
-                        .map((s) => s.trim())
-                        .filter(Boolean),
-                    })
-                  }
-                />
-              </div>
-              <div>
-                <Label className="mb-1 block">Email</Label>
-                <Input
-                  value={content.contact.email}
-                  onChange={(e) => patchContact("email", e.target.value)}
-                />
-              </div>
-              <div>
-                <Label className="mb-1 block">GitHub username (optional)</Label>
-                <Input
-                  value={content.githubUsername}
-                  onChange={(e) => patch({ githubUsername: e.target.value.trim() })}
-                  placeholder="your-handle"
-                />
+
+              <div className="flex justify-between pt-2">
+                <Button variant="ghost" onClick={() => setStep(1)}>
+                  <ArrowLeft /> Back
+                </Button>
+                <Button variant="block" onClick={() => setStep(3)} disabled={!content.name.trim()}>
+                  Next <ArrowRight />
+                </Button>
               </div>
             </div>
 
-            <div className="flex justify-between">
-              <Button variant="ghost" onClick={() => setStep(1)}>
-                <ArrowLeft /> Back
-              </Button>
-              <Button variant="block" onClick={() => setStep(3)} disabled={!content.name.trim()}>
-                Next <ArrowRight />
-              </Button>
+            <div className="overflow-hidden rounded-lg border-2 border-ink bg-card shadow-sm">
+              <div className="border-b-2 border-ink bg-muted/50 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Live website preview
+              </div>
+              <div className="max-h-[70vh] overflow-y-auto">
+                <PortfolioView
+                  content={content}
+                  theme={previewTheme}
+                  sections={previewSections}
+                  repos={null}
+                />
+              </div>
             </div>
           </section>
         )}
 
         {step === 3 && (
-          <section className="space-y-6">
+          <section className="mx-auto max-w-2xl space-y-6">
             <h1 className="text-4xl font-black">Pick a style</h1>
             <div className="grid grid-cols-2 gap-3">
               {(Object.keys(TEMPLATES) as TemplateId[]).map((id) => (
@@ -388,6 +434,16 @@ function CreateWizard() {
                 </button>
               ))}
             </div>
+            <div className="overflow-hidden rounded-lg border-2 border-ink">
+              <div className="max-h-[40vh] overflow-y-auto">
+                <PortfolioView
+                  content={content}
+                  theme={TEMPLATES[template].theme}
+                  sections={previewSections}
+                  repos={null}
+                />
+              </div>
+            </div>
             <div className="flex justify-between">
               <Button variant="ghost" onClick={() => setStep(2)}>
                 <ArrowLeft /> Back
@@ -401,7 +457,7 @@ function CreateWizard() {
         )}
 
         {step === 4 && (
-          <section className="space-y-6">
+          <section className="mx-auto max-w-2xl space-y-6">
             <div className="flex items-center gap-3">
               <div className="grid size-10 place-items-center rounded-full bg-accent">
                 <Check className="size-5" />
@@ -409,8 +465,7 @@ function CreateWizard() {
               <h1 className="text-4xl font-black">Portfolio ready</h1>
             </div>
             <p className="text-muted-foreground">
-              PDF/photo were processed in your browser only. Deploy to GitHub Pages for a free
-              public URL — we do not host your files on Vercel.
+              Your website is built from the resume data. Deploy to GitHub Pages for a public URL.
             </p>
 
             {liveUrl ? (
@@ -424,24 +479,21 @@ function CreateWizard() {
                 >
                   {liveUrl}
                 </a>
-                <p className="text-xs text-muted-foreground">
-                  Hosted on GitHub Pages (free). First load can take 1–2 minutes.
-                </p>
               </div>
             ) : (
               <div className="block-card space-y-4 p-6">
                 <p className="font-semibold">Deploy live (free GitHub Pages)</p>
                 <p className="text-sm text-muted-foreground">
-                  Token at{" "}
+                  Token:{" "}
                   <a
                     className="underline"
-                    href="https://github.com/settings/tokens/new?scopes=repo&description=Folio%20portfolio"
+                    href="https://github.com/settings/tokens/new?scopes=repo&description=Folio"
                     target="_blank"
                     rel="noreferrer"
                   >
                     github.com/settings/tokens
                   </a>{" "}
-                  (<strong>repo</strong> scope). Cleared from this page after deploy.
+                  (<strong>repo</strong> scope).
                 </p>
                 <div>
                   <Label className="mb-1 block">GitHub token</Label>

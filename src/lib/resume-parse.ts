@@ -1,76 +1,213 @@
 import type { Content, Experience, Project } from "./portfolio";
 
-/** Very light resume text → portfolio fields (works offline, no AI API). */
+const TECH_WORDS = [
+  "JavaScript",
+  "TypeScript",
+  "Python",
+  "Java",
+  "C\+\+",
+  "C#",
+  "Go",
+  "Rust",
+  "Kotlin",
+  "Swift",
+  "PHP",
+  "Ruby",
+  "React",
+  "Next\\.js",
+  "Nextjs",
+  "Vue",
+  "Angular",
+  "Node\\.js",
+  "Nodejs",
+  "Express",
+  "Django",
+  "Flask",
+  "Spring",
+  "HTML",
+  "CSS",
+  "Tailwind",
+  "SQL",
+  "PostgreSQL",
+  "MySQL",
+  "MongoDB",
+  "Redis",
+  "AWS",
+  "Azure",
+  "GCP",
+  "Docker",
+  "Kubernetes",
+  "Git",
+  "GitHub",
+  "Linux",
+  "Figma",
+  "GraphQL",
+  "REST",
+  "API",
+  "Machine Learning",
+  "TensorFlow",
+  "PyTorch",
+  "Pandas",
+  "NumPy",
+  "Excel",
+  "Power BI",
+  "Tableau",
+  "Salesforce",
+  "SAP",
+  "Android",
+  "iOS",
+  "Flutter",
+  "React Native",
+];
+
+/** Resume text → portfolio fields (browser-only, no server). */
 export function parseResumeText(raw: string): Partial<Content> {
-  const text = raw.replace(/\r/g, "\n").trim();
+  const text = raw.replace(/\r/g, "\n").replace(/[ \t]+/g, " ").trim();
   if (!text) return {};
 
-  const lines = text
+  // PDF extractors often drop newlines — re-split on common cues
+  const normalized = text
+    .replace(/([a-z])([A-Z])/g, "$1\n$2")
+    .replace(/\s*(EXPERIENCE|EDUCATION|SKILLS|PROJECTS|SUMMARY|PROFILE|OBJECTIVE|WORK EXPERIENCE|TECHNICAL SKILLS)\s*/gi, "\n$1\n");
+
+  const lines = normalized
     .split("\n")
     .map((l) => l.trim())
-    .filter(Boolean);
+    .filter((l) => l.length > 1);
 
   const email =
     text.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)?.[0] ?? "";
   const linkedin =
-    text.match(/https?:\/\/(?:www\.)?linkedin\.com\/in\/[^\s)]+/i)?.[0] ?? "";
-  const github =
-    text.match(/https?:\/\/(?:www\.)?github\.com\/[^\s)]+/i)?.[0] ?? "";
+    text.match(/(?:https?:\/\/)?(?:www\.)?linkedin\.com\/in\/[A-Za-z0-9_-]+\/?/i)?.[0] ??
+    "";
+  const githubUrl =
+    text.match(/(?:https?:\/\/)?(?:www\.)?github\.com\/[A-Za-z0-9_-]+\/?/i)?.[0] ?? "";
   const website =
-    text.match(/https?:\/\/(?!linkedin|github)[^\s)]+/i)?.[0] ?? "";
+    text.match(/https?:\/\/(?!.*(linkedin|github)\.)[^\s)]+/i)?.[0] ?? "";
 
-  let name = "";
-  for (const line of lines.slice(0, 5)) {
-    if (/@|https?:|linkedin|github|curriculum|resume|cv/i.test(line)) continue;
-    if (line.length > 2 && line.length < 60 && !/^\d+$/.test(line)) {
-      name = line.replace(/\|.*$/, "").trim();
-      break;
-    }
-  }
-
-  let headline = "";
-  for (const line of lines.slice(1, 8)) {
-    if (line === name) continue;
-    if (/@|https?:/.test(line)) continue;
-    if (line.length < 80) {
-      headline = line;
-      break;
-    }
-  }
-
-  const skills = extractListSection(text, [
-    "skills",
-    "technical skills",
-    "technologies",
-    "tech stack",
-  ]);
+  let name = guessName(lines, email);
+  let headline = guessHeadline(lines, name);
+  const skills = [
+    ...extractListSection(normalized, [
+      "skills",
+      "technical skills",
+      "technologies",
+      "tech stack",
+      "core competencies",
+    ]),
+    ...extractTechKeywords(text),
+  ];
+  const uniqueSkills = [...new Set(skills.map((s) => s.trim()).filter(Boolean))].slice(
+    0,
+    16,
+  );
 
   const bio =
-    extractParagraphSection(text, ["summary", "profile", "about me", "about", "objective"]) ||
-    lines.slice(2, 6).join(" ").slice(0, 400);
+    extractParagraphSection(normalized, [
+      "summary",
+      "profile",
+      "about me",
+      "about",
+      "objective",
+      "professional summary",
+    ]) ||
+    lines
+      .filter((l) => l.length > 40 && !/@/.test(l) && l !== name)
+      .slice(0, 3)
+      .join(" ")
+      .slice(0, 500);
 
-  const experience = extractExperience(text);
-  const projects = extractProjects(text);
+  const experience = extractExperience(normalized);
+  const projects = extractProjects(normalized);
 
-  const githubUsername =
-    github.match(/github\.com\/([^/\s?#]+)/i)?.[1]?.replace(/\/$/, "") ?? "";
+  let githubUsername =
+    githubUrl.match(/github\.com\/([^/\s?#]+)/i)?.[1]?.replace(/\/$/, "") ?? "";
+
+  // Prefer clean linkedin/github URLs
+  const linkedinUrl = linkedin
+    ? linkedin.startsWith("http")
+      ? linkedin
+      : `https://${linkedin}`
+    : "";
+  const ghContact = githubUrl
+    ? githubUrl.startsWith("http")
+      ? githubUrl
+      : `https://${githubUrl}`
+    : "";
 
   return {
-    name: name || undefined,
-    headline: headline || undefined,
-    bio: bio || undefined,
-    skills: skills.length ? skills : undefined,
-    experience: experience.length ? experience : undefined,
-    projects: projects.length ? projects : undefined,
-    githubUsername: githubUsername || undefined,
+    ...(name ? { name } : {}),
+    ...(headline ? { headline } : {}),
+    ...(bio ? { bio } : {}),
+    ...(uniqueSkills.length ? { skills: uniqueSkills } : {}),
+    ...(experience.length ? { experience } : {}),
+    ...(projects.length ? { projects } : {}),
+    ...(githubUsername ? { githubUsername } : {}),
     contact: {
       email,
       website,
-      github,
-      linkedin,
+      github: ghContact,
+      linkedin: linkedinUrl,
       twitter: "",
     },
   };
+}
+
+function guessName(lines: string[], email: string): string {
+  for (const line of lines.slice(0, 8)) {
+    if (/@|https?:|linkedin|github|curriculum|resume|cv|phone|mobile|address/i.test(line))
+      continue;
+    // All-caps name lines common in PDFs
+    if (/^[A-Z][A-Za-z.'\-]+(?:\s+[A-Z][A-Za-z.'\-]+){0,3}$/.test(line) && line.length < 50) {
+      return toTitleCase(line);
+    }
+    if (line.length > 2 && line.length < 45 && !/^\d+$/.test(line) && !/,/.test(line)) {
+      return toTitleCase(line.replace(/\|.*$/, "").trim());
+    }
+  }
+  // Fallback from email local part: databytes.sairam → Sairam / Databytes Sairam
+  if (email) {
+    const local = email.split("@")[0] || "";
+    const parts = local.split(/[._+-]/).filter((p) => p.length > 1 && !/^(data|bytes|mail|info|dev)$/i.test(p));
+    if (parts.length) return parts.map(toTitleCase).join(" ");
+  }
+  return "";
+}
+
+function guessHeadline(lines: string[], name: string): string {
+  const roleHints =
+    /engineer|developer|designer|student|intern|analyst|manager|consultant|founder|architect|scientist|lead|full.?stack|front.?end|back.?end|software|data|product/i;
+  for (const line of lines.slice(0, 12)) {
+    if (line === name || line.toLowerCase() === name.toLowerCase()) continue;
+    if (/@|https?:/.test(line)) continue;
+    if (roleHints.test(line) && line.length < 100) return line;
+  }
+  for (const line of lines.slice(1, 8)) {
+    if (line === name) continue;
+    if (/@|https?:/.test(line)) continue;
+    if (line.length > 8 && line.length < 90) return line;
+  }
+  return "";
+}
+
+function extractTechKeywords(text: string): string[] {
+  const found: string[] = [];
+  for (const w of TECH_WORDS) {
+    const re = new RegExp(`\\b${w}\\b`, "i");
+    if (re.test(text)) {
+      const nice = w.replace(/\\/g, "");
+      found.push(nice === "Nextjs" ? "Next.js" : nice === "Nodejs" ? "Node.js" : nice);
+    }
+  }
+  return found;
+}
+
+function toTitleCase(s: string) {
+  return s
+    .toLowerCase()
+    .split(/\s+/)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
 }
 
 function extractListSection(text: string, headers: string[]): string[] {
@@ -84,7 +221,7 @@ function extractListSection(text: string, headers: string[]): string[] {
   const after = text.slice(start).split("\n").slice(1);
   const items: string[] = [];
   for (const line of after) {
-    if (/^(experience|education|projects|work|employment|certifications)\b/i.test(line.trim())) {
+    if (/^(experience|education|projects|work|employment|certifications|summary)\b/i.test(line.trim())) {
       break;
     }
     const cleaned = line
@@ -95,10 +232,10 @@ function extractListSection(text: string, headers: string[]): string[] {
       if (items.length) break;
       continue;
     }
-    if (/[,|]/.test(cleaned) && cleaned.length < 200) {
+    if (/[,|•]/.test(cleaned) && cleaned.length < 220) {
       items.push(
         ...cleaned
-          .split(/[,|]/)
+          .split(/[,|•]/)
           .map((s) => s.trim())
           .filter((s) => s.length > 1 && s.length < 40),
       );
@@ -186,8 +323,7 @@ function extractProjects(text: string): Project[] {
       if (current) items.push(current);
       current = {
         title: t
-          .replace(/^[-•*]\s*/,
- "")
+          .replace(/^[-•*]\s*/, "")
           .split(/[—–\-:]/)[0]
           .trim()
           .slice(0, 80),
@@ -208,15 +344,10 @@ function escapeRe(s: string) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-/**
- * Extract text from a PDF entirely in the browser.
- * PDF bytes are never sent to Vercel / our servers.
- */
+/** PDF text extraction — browser only, never uploaded. */
 export async function extractPdfText(file: File): Promise<string> {
   const pdfjs = await import("pdfjs-dist");
-  // Worker from CDN — no server storage of the PDF
   pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.mjs`;
-
   const buf = await file.arrayBuffer();
   const data = new Uint8Array(buf);
   const doc = await pdfjs.getDocument({ data }).promise;
@@ -229,15 +360,12 @@ export async function extractPdfText(file: File): Promise<string> {
       .map((it) => ("str" in it ? String((it as { str: string }).str) : ""))
       .join(" ");
     parts.push(line);
-    // Drop page ref ASAP
     page.cleanup();
   }
   await doc.destroy();
-  // data / buf go out of scope — GC can reclaim; we never persist them
   return parts.join("\n").trim();
 }
 
-/** Read resume file as text. PDF is parsed client-side only. */
 export async function readResumeFile(file: File): Promise<string> {
   const name = file.name.toLowerCase();
   const type = file.type || "";
@@ -247,7 +375,6 @@ export async function readResumeFile(file: File): Promise<string> {
   return await file.text();
 }
 
-/** Photo → compressed data URL for embedding in HTML (browser only). */
 export async function fileToDataUrl(file: File, maxEdge = 512): Promise<string> {
   const bitmap = await createImageBitmap(file);
   const scale = Math.min(1, maxEdge / Math.max(bitmap.width, bitmap.height));
