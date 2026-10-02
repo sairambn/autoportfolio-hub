@@ -10,7 +10,7 @@ export type GithubUser = {
 export type AuthSession = {
   token: string;
   user: GithubUser;
-  expiresAt: number; // ms epoch; GitHub tokens don't expire, we still refresh profile periodically
+  expiresAt: number;
 };
 
 const KEY = "folio_github_session";
@@ -46,7 +46,14 @@ export async function fetchGithubUser(token: string): Promise<GithubUser> {
       "X-GitHub-Api-Version": "2022-11-28",
     },
   });
-  if (!res.ok) throw new Error(`GitHub profile failed (${res.status})`);
+  if (!res.ok) {
+    const t = await res.text();
+    throw new Error(
+      res.status === 401
+        ? "Invalid or expired GitHub token"
+        : `GitHub profile failed (${res.status}): ${t}`,
+    );
+  }
   const u = (await res.json()) as GithubUser;
   return {
     id: u.id,
@@ -56,6 +63,19 @@ export async function fetchGithubUser(token: string): Promise<GithubUser> {
     html_url: u.html_url,
     email: u.email ?? null,
   };
+}
+
+/** Sign in with a personal access token (classic or fine-grained with repo write). */
+export async function signInWithToken(token: string) {
+  const clean = token.trim();
+  if (!clean) throw new Error("Paste a GitHub token");
+  const user = await fetchGithubUser(clean);
+  saveSession({
+    token: clean,
+    user,
+    expiresAt: Date.now() + 1000 * 60 * 60 * 24 * 90,
+  });
+  return user;
 }
 
 /** Start GitHub OAuth (redirect). Needs GITHUB_CLIENT_ID on the server. */
