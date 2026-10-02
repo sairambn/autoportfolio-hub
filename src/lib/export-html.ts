@@ -3,15 +3,13 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { PortfolioView } from "@/components/PortfolioView";
 import { googleFontsHref, normalize, type Repo } from "./portfolio";
 
-const ENTITIES: Record<string, string> = {
-  "&": "&",
-  "<": "<",
-  ">": ">",
-  '"': """,
-};
-
-function esc(s: string) {
-  return String(s ?? "").replace(/[&<>"]/g, (c) => ENTITIES[c] ?? c);
+/** Escape text for safe use inside HTML attribute / text nodes. */
+function esc(s: string): string {
+  return String(s ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }
 
 export async function renderPortfolioHtml(row: {

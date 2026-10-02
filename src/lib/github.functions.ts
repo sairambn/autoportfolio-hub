@@ -36,10 +36,6 @@ async function gh(token: string, path: string, init?: RequestInit) {
   });
 }
 
-function toBase64(text: string) {
-  return Buffer.from(text, "utf8").toString("base64");
-}
-
 async function sleep(ms: number) {
   await new Promise((r) => setTimeout(r, ms));
 }
@@ -58,10 +54,12 @@ async function ensureRepo(token: string, login: string, repoName: string, descri
       }),
     });
     if (!created.ok) {
-      throw new Error(`Could not create repo (${created.status}): ${await created.text()}`);
+      const body = await created.text();
+      throw new Error(`Could not create repo (${created.status}): ${body}`);
     }
-    for (let i = 0; i < 8; i++) {
-      await sleep(400 + i * 200);
+    // Wait until the empty commit from auto_init is visible
+    for (let i = 0; i < 10; i++) {
+      await sleep(500 + i * 150);
       res = await gh(token, `/repos/${login}/${repoName}`);
       if (res.ok) break;
     }
@@ -73,49 +71,94 @@ async function ensureRepo(token: string, login: string, repoName: string, descri
   return { defaultBranch: info.default_branch || "main" };
 }
 
-async function putFile(
+/** Create a blob and return its SHA. */
+async function createBlob(token: string, login: string, repoName: string, content: string) {
+  const res = await gh(token, `/repos/${login}/${repoName}/git/blobs`, {
+    method: "POST",
+    body: JSON.stringify({ content, encoding: "utf-8" }),
+  });
+  if (!res.ok) throw new Error(`Create blob failed (${res.status}): ${await res.text()}`);
+  return ((await res.json()) as { sha: string }).sha;
+}
+
+/**
+ * Atomically write multiple files in a single commit via Git Data API.
+ * Avoids partial publishes and SHA race conditions from sequential Contents API puts.
+ */
+async function commitFiles(
   token: string,
   login: string,
   repoName: string,
-  path: string,
-  content: string,
-  message: string,
   branch: string,
+  message: string,
+  files: { path: string; content: string }[],
 ) {
-  let sha: string | undefined;
-  const existing = await gh(
-    token,
-    `/repos/${login}/${repoName}/contents/${path}?ref=${branch}`,
-  );
-  if (existing.ok) {
-    sha = ((await existing.json()) as { sha?: string }).sha;
+  // 1. Resolve branch tip
+  let refRes = await gh(token, `/repos/${login}/${repoName}/git/ref/heads/${branch}`);
+  if (!refRes.ok) {
+    // Branch may not exist yet right after create — try default
+    await sleep(800);
+    refRes = await gh(token, `/repos/${login}/${repoName}/git/ref/heads/${branch}`);
+  }
+  if (!refRes.ok) {
+    throw new Error(`Could not read branch ${branch} (${refRes.status}): ${await refRes.text()}`);
+  }
+  const parentSha = ((await refRes.json()) as { object: { sha: string } }).object.sha;
+
+  // 2. Get base tree from parent commit
+  const commitRes = await gh(token, `/repos/${login}/${repoName}/git/commits/${parentSha}`);
+  if (!commitRes.ok) {
+    throw new Error(`Could not read commit (${commitRes.status}): ${await commitRes.text()}`);
+  }
+  const baseTree = ((await commitRes.json()) as { tree: { sha: string } }).tree.sha;
+
+  // 3. Create blobs + tree entries
+  const tree = [];
+  for (const f of files) {
+    const sha = await createBlob(token, login, repoName, f.content);
+    tree.push({ path: f.path, mode: "100644" as const, type: "blob" as const, sha });
   }
 
-  for (let attempt = 0; attempt < 3; attempt++) {
-    const put = await gh(token, `/repos/${login}/${repoName}/contents/${path}`, {
-      method: "PUT",
-      body: JSON.stringify({
-        message,
-        content: toBase64(content),
-        branch,
-        ...(sha ? { sha } : {}),
-      }),
+  const treeRes = await gh(token, `/repos/${login}/${repoName}/git/trees`, {
+    method: "POST",
+    body: JSON.stringify({ base_tree: baseTree, tree }),
+  });
+  if (!treeRes.ok) {
+    throw new Error(`Create tree failed (${treeRes.status}): ${await treeRes.text()}`);
+  }
+  const newTreeSha = ((await treeRes.json()) as { sha: string }).sha;
+
+  // 4. Create commit
+  const newCommitRes = await gh(token, `/repos/${login}/${repoName}/git/commits`, {
+    method: "POST",
+    body: JSON.stringify({
+      message,
+      tree: newTreeSha,
+      parents: [parentSha],
+    }),
+  });
+  if (!newCommitRes.ok) {
+    throw new Error(`Create commit failed (${newCommitRes.status}): ${await newCommitRes.text()}`);
+  }
+  const newCommitSha = ((await newCommitRes.json()) as { sha: string }).sha;
+
+  // 5. Move branch tip
+  const updateRef = await gh(token, `/repos/${login}/${repoName}/git/refs/heads/${branch}`, {
+    method: "PATCH",
+    body: JSON.stringify({ sha: newCommitSha, force: false }),
+  });
+  if (!updateRef.ok) {
+    // Retry once with force if non-fast-forward (rare race)
+    const retry = await gh(token, `/repos/${login}/${repoName}/git/refs/heads/${branch}`, {
+      method: "PATCH",
+      body: JSON.stringify({ sha: newCommitSha, force: true }),
     });
-
-    if (put.ok) return;
-
-    if (put.status === 409 || put.status === 422) {
-      const again = await gh(token, `/repos/${login}/${repoName}/contents/${path}?ref=${branch}`);
-      if (again.ok) {
-        sha = ((await again.json()) as { sha?: string }).sha;
-        continue;
-      }
+    if (!retry.ok) {
+      throw new Error(`Update branch failed (${retry.status}): ${await retry.text()}`);
     }
-
-    throw new Error(`Push ${path} failed (${put.status}): ${await put.text()}`);
   }
 
-  throw new Error(`Push ${path} failed after retries`);
+  return newCommitSha;
 }
 
 async function enablePages(token: string, login: string, repoName: string, branch: string) {
@@ -129,6 +172,7 @@ async function enablePages(token: string, login: string, repoName: string, branc
     res = await gh(token, `/repos/${login}/${repoName}/pages`, { method: "PUT", body });
   }
   if (!res.ok && res.status !== 409) {
+    // Older API shape fallback
     const fallback = await gh(token, `/repos/${login}/${repoName}/pages`, {
       method: "POST",
       body: JSON.stringify({ source: { branch, path: "/" } }),
@@ -186,7 +230,7 @@ export const publishToGithub = createServerFn({ method: "POST" })
     const readme = [
       `# ${data.portfolio.title || "Portfolio"}`,
       "",
-      `Published with Folio.`,
+      "Published with [Folio](https://github.com/sairambn/autoportfolio-hub).",
       "",
       `**Live site:** https://${data.login}.github.io/${repoName}/`,
       "",
@@ -194,10 +238,12 @@ export const publishToGithub = createServerFn({ method: "POST" })
 
     const stamp = new Date().toISOString();
 
-    await putFile(data.token, data.login, repoName, ".nojekyll", "", `chore: disable jekyll ${stamp}`, defaultBranch);
-    await putFile(data.token, data.login, repoName, "index.html", html, `Update portfolio ${stamp}`, defaultBranch);
-    await putFile(data.token, data.login, repoName, "folio.json", folioJson, `Update folio data ${stamp}`, defaultBranch);
-    await putFile(data.token, data.login, repoName, "README.md", readme, `Update README ${stamp}`, defaultBranch);
+    await commitFiles(data.token, data.login, repoName, defaultBranch, `Publish portfolio ${stamp}`, [
+      { path: ".nojekyll", content: "" },
+      { path: "index.html", content: html },
+      { path: "folio.json", content: folioJson },
+      { path: "README.md", content: readme },
+    ]);
 
     await enablePages(data.token, data.login, repoName, defaultBranch);
 
