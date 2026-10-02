@@ -1,7 +1,6 @@
 import type { CSSProperties } from "react";
 import { FONTS, type Content, type Repo, type Section, type Theme } from "@/lib/portfolio";
 
-/** Layout inspired by polished personal sites like bnsairam.vercel.app */
 export const PORTFOLIO_CSS = `
 .pf{background:var(--pf-bg);color:var(--pf-fg);font-family:var(--pf-body);min-height:100%;line-height:1.55;-webkit-font-smoothing:antialiased}
 .pf *{box-sizing:border-box}
@@ -20,7 +19,6 @@ export const PORTFOLIO_CSS = `
 .pf-sub{margin:14px 0 0;font-size:15px;color:var(--pf-muted)}
 .pf-headline{font-size:18px;margin:18px 0 0;max-width:34em;font-weight:500}
 .pf-bio{font-size:16px;color:var(--pf-muted);margin:14px 0 0;max-width:36em;white-space:pre-wrap}
-.pf-loc{font-size:14px;color:var(--pf-muted);margin-top:10px}
 .pf-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:36px}
 .pf-stat{background:var(--pf-surface);border-radius:12px;padding:16px 14px}
 .pf-stat b{display:block;font-family:var(--pf-head);font-size:15px;margin-bottom:4px}
@@ -45,13 +43,16 @@ export const PORTFOLIO_CSS = `
 .pf-btn{padding:10px 16px;border:1.5px solid color-mix(in oklab,var(--pf-fg) 35%,transparent);border-radius:999px;font-size:13px;font-weight:600}
 .pf-btn:hover{background:var(--pf-accent);border-color:var(--pf-accent);color:var(--pf-bg)}
 .pf-foot{padding:48px 0 24px;color:var(--pf-muted);font-size:12px}
-.pf-t-bold .pf-name{text-transform:uppercase;letter-spacing:.02em}
-.pf-t-bold .pf-stat,.pf-t-bold .pf-chip{border-radius:4px}
-.pf-t-terminal .pf-name::before{content:"> ";color:var(--pf-accent)}
-.pf-t-terminal .pf-stat,.pf-t-terminal .pf-chip{border:1px solid color-mix(in oklab,var(--pf-fg) 22%,transparent);border-radius:4px}
+.pf-t-signal .pf-name{font-style:italic;font-weight:700}
 .pf-t-minimal .pf-sec{border-top:none}
 .pf-t-minimal .pf-name{font-weight:500}
-.pf-t-editorial .pf-name{font-style:italic;font-weight:700}
+.pf-t-midnight .pf-stat{border:1px solid color-mix(in oklab,var(--pf-fg) 12%,transparent)}
+.pf-t-ocean .pf-name{letter-spacing:-.04em}
+.pf-t-campus .pf-name{font-style:italic}
+.pf-t-neon .pf-name{text-transform:uppercase;letter-spacing:.02em}
+.pf-t-neon .pf-stat,.pf-t-neon .pf-chip{border-radius:4px}
+.pf-t-mono .pf-name::before{content:"> ";color:var(--pf-accent)}
+.pf-t-mono .pf-stat,.pf-t-mono .pf-chip{border:1px solid color-mix(in oklab,var(--pf-fg) 22%,transparent);border-radius:4px}
 @media(max-width:640px){
   .pf-stats{grid-template-columns:1fr}
   .pf-exp{grid-template-columns:1fr}
@@ -95,9 +96,10 @@ export function PortfolioView({
   const skillPreview = c.skills.slice(0, 3).join(" · ") || "Skills";
   const projectCount = c.projects.length || 0;
   let sectionNo = 0;
+  const tpl = theme.template || "signal";
 
   return (
-    <div className={`pf pf-t-${theme.template}`} style={themeVars(theme)}>
+    <div className={`pf pf-t-${tpl}`} style={themeVars(theme)}>
       <style dangerouslySetInnerHTML={{ __html: PORTFOLIO_CSS }} />
       <div className="pf-wrap">
         <nav className="pf-nav">
@@ -145,9 +147,7 @@ export function PortfolioView({
                       </div>
                     </div>
                     <div className="pf-marquee" aria-hidden>
-                      <div className="pf-marquee-inner">
-                        {marquee.repeat(12)}
-                      </div>
+                      <div className="pf-marquee-inner">{marquee.repeat(12)}</div>
                     </div>
                   </header>
                 );
