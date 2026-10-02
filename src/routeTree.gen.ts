@@ -12,10 +12,12 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedEditorIdRouteImport } from './routes/_authenticated/editor.$id'
 import { Route as PSlugRouteImport } from './routes/p.$slug'
 import { Route as OauthGithubReturnRouteImport } from './routes/oauth/github/return'
+import { Route as ApiAuthGithubRouteImport } from './routes/api/auth/github'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -29,6 +31,11 @@ const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthCallbackRoute = AuthCallbackRouteImport.update({
+  id: '/auth/callback',
+  path: '/auth/callback',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
@@ -51,55 +58,86 @@ const OauthGithubReturnRoute = OauthGithubReturnRouteImport.update({
   path: '/oauth/github/return',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAuthGithubRoute = ApiAuthGithubRouteImport.update({
+  id: '/api/auth/github',
+  path: '/api/auth/github',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/auth/callback': typeof AuthCallbackRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/editor/$id': typeof AuthenticatedEditorIdRoute
   '/p/$slug': typeof PSlugRoute
   '/oauth/github/return': typeof OauthGithubReturnRoute
+  '/api/auth/github': typeof ApiAuthGithubRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/auth/callback': typeof AuthCallbackRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/editor/$id': typeof AuthenticatedEditorIdRoute
   '/p/$slug': typeof PSlugRoute
   '/oauth/github/return': typeof OauthGithubReturnRoute
+  '/api/auth/github': typeof ApiAuthGithubRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
+  '/auth/callback': typeof AuthCallbackRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/editor/$id': typeof AuthenticatedEditorIdRoute
   '/p/$slug': typeof PSlugRoute
   '/oauth/github/return': typeof OauthGithubReturnRoute
+  '/api/auth/github': typeof ApiAuthGithubRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/auth' | '/dashboard' | '/editor/$id' | '/p/$slug' | '/oauth/github/return'
+  fullPaths:
+    | '/'
+    | '/auth'
+    | '/auth/callback'
+    | '/dashboard'
+    | '/editor/$id'
+    | '/p/$slug'
+    | '/oauth/github/return'
+    | '/api/auth/github'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/auth' | '/dashboard' | '/editor/$id' | '/p/$slug' | '/oauth/github/return'
+  to:
+    | '/'
+    | '/auth'
+    | '/auth/callback'
+    | '/dashboard'
+    | '/editor/$id'
+    | '/p/$slug'
+    | '/oauth/github/return'
+    | '/api/auth/github'
   id:
     | '__root__'
     | '/'
     | '/_authenticated'
     | '/auth'
+    | '/auth/callback'
     | '/_authenticated/dashboard'
     | '/_authenticated/editor/$id'
     | '/p/$slug'
     | '/oauth/github/return'
+    | '/api/auth/github'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
+  AuthCallbackRoute: typeof AuthCallbackRoute
   PSlugRoute: typeof PSlugRoute
   OauthGithubReturnRoute: typeof OauthGithubReturnRoute
+  ApiAuthGithubRoute: typeof ApiAuthGithubRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -123,6 +161,13 @@ declare module '@tanstack/react-router' {
       path: '/auth'
       fullPath: '/auth'
       preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth/callback': {
+      id: '/auth/callback'
+      path: '/auth/callback'
+      fullPath: '/auth/callback'
+      preLoaderRoute: typeof AuthCallbackRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/dashboard': {
@@ -153,6 +198,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OauthGithubReturnRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/auth/github': {
+      id: '/api/auth/github'
+      path: '/api/auth/github'
+      fullPath: '/api/auth/github'
+      preLoaderRoute: typeof ApiAuthGithubRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -173,8 +225,10 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
+  AuthCallbackRoute: AuthCallbackRoute,
   PSlugRoute: PSlugRoute,
   OauthGithubReturnRoute: OauthGithubReturnRoute,
+  ApiAuthGithubRoute: ApiAuthGithubRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
