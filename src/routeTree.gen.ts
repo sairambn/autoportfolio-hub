@@ -10,25 +10,20 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as CreateRouteImport } from './routes/create'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthRouteImport } from './routes/auth'
-import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
+import { Route as CreateRouteImport } from './routes/create'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
-import { Route as AuthenticatedEditorIdRouteImport } from './routes/_authenticated/editor.$id'
-import { Route as PSlugRouteImport } from './routes/p.$slug'
-import { Route as OauthGithubReturnRouteImport } from './routes/oauth/github/return'
-import { Route as ApiAuthGithubRouteImport } from './routes/api/auth/github'
+import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as DemoSakuraRouteImport } from './routes/demo.sakura'
+import { Route as PSlugRouteImport } from './routes/p.$slug'
+import { Route as AuthenticatedEditorIdRouteImport } from './routes/_authenticated/editor.$id'
+import { Route as ApiAuthGithubRouteImport } from './routes/api/auth/github'
+import { Route as OauthGithubReturnRouteImport } from './routes/oauth/github/return'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const CreateRoute = CreateRouteImport.update({
-  id: '/create',
-  path: '/create',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
@@ -40,9 +35,9 @@ const AuthRoute = AuthRouteImport.update({
   path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthCallbackRoute = AuthCallbackRouteImport.update({
-  id: '/auth/callback',
-  path: '/auth/callback',
+const CreateRoute = CreateRouteImport.update({
+  id: '/create',
+  path: '/create',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
@@ -50,14 +45,29 @@ const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthCallbackRoute = AuthCallbackRouteImport.update({
+  id: '/callback',
+  path: '/callback',
+  getParentRoute: () => AuthRoute,
+} as any)
+const DemoSakuraRoute = DemoSakuraRouteImport.update({
+  id: '/demo/sakura',
+  path: '/demo/sakura',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PSlugRoute = PSlugRouteImport.update({
+  id: '/p/$slug',
+  path: '/p/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedEditorIdRoute = AuthenticatedEditorIdRouteImport.update({
   id: '/editor/$id',
   path: '/editor/$id',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const PSlugRoute = PSlugRouteImport.update({
-  id: '/p/$slug',
-  path: '/p/$slug',
+const ApiAuthGithubRoute = ApiAuthGithubRouteImport.update({
+  id: '/api/auth/github',
+  path: '/api/auth/github',
   getParentRoute: () => rootRouteImport,
 } as any)
 const OauthGithubReturnRoute = OauthGithubReturnRouteImport.update({
@@ -65,105 +75,94 @@ const OauthGithubReturnRoute = OauthGithubReturnRouteImport.update({
   path: '/oauth/github/return',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiAuthGithubRoute = ApiAuthGithubRouteImport.update({
-  id: '/api/auth/github',
-  path: '/api/auth/github',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DemoSakuraRoute = DemoSakuraRouteImport.update({
-  id: '/demo/sakura',
-  path: '/demo/sakura',
-  getParentRoute: () => rootRouteImport,
-} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/auth': typeof AuthRouteWithChildren
   '/create': typeof CreateRoute
-  '/auth': typeof AuthRoute
-  '/auth/callback': typeof AuthCallbackRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
-  '/editor/$id': typeof AuthenticatedEditorIdRoute
-  '/p/$slug': typeof PSlugRoute
-  '/oauth/github/return': typeof OauthGithubReturnRoute
-  '/api/auth/github': typeof ApiAuthGithubRoute
+  '/auth/callback': typeof AuthCallbackRoute
   '/demo/sakura': typeof DemoSakuraRoute
+  '/p/$slug': typeof PSlugRoute
+  '/editor/$id': typeof AuthenticatedEditorIdRoute
+  '/api/auth/github': typeof ApiAuthGithubRoute
+  '/oauth/github/return': typeof OauthGithubReturnRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/auth': typeof AuthRouteWithChildren
   '/create': typeof CreateRoute
-  '/auth': typeof AuthRoute
-  '/auth/callback': typeof AuthCallbackRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
-  '/editor/$id': typeof AuthenticatedEditorIdRoute
-  '/p/$slug': typeof PSlugRoute
-  '/oauth/github/return': typeof OauthGithubReturnRoute
-  '/api/auth/github': typeof ApiAuthGithubRoute
+  '/auth/callback': typeof AuthCallbackRoute
   '/demo/sakura': typeof DemoSakuraRoute
+  '/p/$slug': typeof PSlugRoute
+  '/editor/$id': typeof AuthenticatedEditorIdRoute
+  '/api/auth/github': typeof ApiAuthGithubRoute
+  '/oauth/github/return': typeof OauthGithubReturnRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/create': typeof CreateRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
-  '/auth': typeof AuthRoute
-  '/auth/callback': typeof AuthCallbackRoute
+  '/auth': typeof AuthRouteWithChildren
+  '/create': typeof CreateRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
-  '/_authenticated/editor/$id': typeof AuthenticatedEditorIdRoute
-  '/p/$slug': typeof PSlugRoute
-  '/oauth/github/return': typeof OauthGithubReturnRoute
-  '/api/auth/github': typeof ApiAuthGithubRoute
+  '/auth/callback': typeof AuthCallbackRoute
   '/demo/sakura': typeof DemoSakuraRoute
+  '/p/$slug': typeof PSlugRoute
+  '/_authenticated/editor/$id': typeof AuthenticatedEditorIdRoute
+  '/api/auth/github': typeof ApiAuthGithubRoute
+  '/oauth/github/return': typeof OauthGithubReturnRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
-    | '/create'
     | '/auth'
-    | '/auth/callback'
+    | '/create'
     | '/dashboard'
-    | '/editor/$id'
-    | '/p/$slug'
-    | '/oauth/github/return'
-    | '/api/auth/github'
+    | '/auth/callback'
     | '/demo/sakura'
+    | '/p/$slug'
+    | '/editor/$id'
+    | '/api/auth/github'
+    | '/oauth/github/return'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/create'
     | '/auth'
-    | '/auth/callback'
+    | '/create'
     | '/dashboard'
-    | '/editor/$id'
-    | '/p/$slug'
-    | '/oauth/github/return'
-    | '/api/auth/github'
+    | '/auth/callback'
     | '/demo/sakura'
+    | '/p/$slug'
+    | '/editor/$id'
+    | '/api/auth/github'
+    | '/oauth/github/return'
   id:
     | '__root__'
     | '/'
-    | '/create'
     | '/_authenticated'
     | '/auth'
-    | '/auth/callback'
+    | '/create'
     | '/_authenticated/dashboard'
-    | '/_authenticated/editor/$id'
-    | '/p/$slug'
-    | '/oauth/github/return'
-    | '/api/auth/github'
+    | '/auth/callback'
     | '/demo/sakura'
+    | '/p/$slug'
+    | '/_authenticated/editor/$id'
+    | '/api/auth/github'
+    | '/oauth/github/return'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  CreateRoute: typeof CreateRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
-  AuthRoute: typeof AuthRoute
-  AuthCallbackRoute: typeof AuthCallbackRoute
-  PSlugRoute: typeof PSlugRoute
-  OauthGithubReturnRoute: typeof OauthGithubReturnRoute
-  ApiAuthGithubRoute: typeof ApiAuthGithubRoute
+  AuthRoute: typeof AuthRouteWithChildren
+  CreateRoute: typeof CreateRoute
   DemoSakuraRoute: typeof DemoSakuraRoute
+  PSlugRoute: typeof PSlugRoute
+  ApiAuthGithubRoute: typeof ApiAuthGithubRoute
+  OauthGithubReturnRoute: typeof OauthGithubReturnRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -173,13 +172,6 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/create': {
-      id: '/create'
-      path: '/create'
-      fullPath: '/create'
-      preLoaderRoute: typeof CreateRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated': {
@@ -196,11 +188,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/auth/callback': {
-      id: '/auth/callback'
-      path: '/auth/callback'
-      fullPath: '/auth/callback'
-      preLoaderRoute: typeof AuthCallbackRouteImport
+    '/create': {
+      id: '/create'
+      path: '/create'
+      fullPath: '/create'
+      preLoaderRoute: typeof CreateRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/dashboard': {
@@ -210,12 +202,19 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDashboardRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/editor/$id': {
-      id: '/_authenticated/editor/$id'
-      path: '/editor/$id'
-      fullPath: '/editor/$id'
-      preLoaderRoute: typeof AuthenticatedEditorIdRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
+    '/auth/callback': {
+      id: '/auth/callback'
+      path: '/callback'
+      fullPath: '/auth/callback'
+      preLoaderRoute: typeof AuthCallbackRouteImport
+      parentRoute: typeof AuthRoute
+    }
+    '/demo/sakura': {
+      id: '/demo/sakura'
+      path: '/demo/sakura'
+      fullPath: '/demo/sakura'
+      preLoaderRoute: typeof DemoSakuraRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/p/$slug': {
       id: '/p/$slug'
@@ -224,12 +223,12 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/oauth/github/return': {
-      id: '/oauth/github/return'
-      path: '/oauth/github/return'
-      fullPath: '/oauth/github/return'
-      preLoaderRoute: typeof OauthGithubReturnRouteImport
-      parentRoute: typeof rootRouteImport
+    '/_authenticated/editor/$id': {
+      id: '/_authenticated/editor/$id'
+      path: '/editor/$id'
+      fullPath: '/editor/$id'
+      preLoaderRoute: typeof AuthenticatedEditorIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/api/auth/github': {
       id: '/api/auth/github'
@@ -238,11 +237,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAuthGithubRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/demo/sakura': {
-      id: '/demo/sakura'
-      path: '/demo/sakura'
-      fullPath: '/demo/sakura'
-      preLoaderRoute: typeof DemoSakuraRouteImport
+    '/oauth/github/return': {
+      id: '/oauth/github/return'
+      path: '/oauth/github/return'
+      fullPath: '/oauth/github/return'
+      preLoaderRoute: typeof OauthGithubReturnRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -261,16 +260,25 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
 const AuthenticatedRouteRouteWithChildren =
   AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
 
+interface AuthRouteChildren {
+  AuthCallbackRoute: typeof AuthCallbackRoute
+}
+
+const AuthRouteChildren: AuthRouteChildren = {
+  AuthCallbackRoute: AuthCallbackRoute,
+}
+
+const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  CreateRoute: CreateRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
-  AuthRoute: AuthRoute,
-  AuthCallbackRoute: AuthCallbackRoute,
-  PSlugRoute: PSlugRoute,
-  OauthGithubReturnRoute: OauthGithubReturnRoute,
-  ApiAuthGithubRoute: ApiAuthGithubRoute,
+  AuthRoute: AuthRouteWithChildren,
+  CreateRoute: CreateRoute,
   DemoSakuraRoute: DemoSakuraRoute,
+  PSlugRoute: PSlugRoute,
+  ApiAuthGithubRoute: ApiAuthGithubRoute,
+  OauthGithubReturnRoute: OauthGithubReturnRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
