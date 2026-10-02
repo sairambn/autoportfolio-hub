@@ -58,16 +58,23 @@ export function getBySlug(login: string, slug: string): PortfolioRecord | null {
 
 export function createPortfolio(login: string, opts?: { title?: string }): PortfolioRecord {
   const now = new Date().toISOString();
-  const base = login.toLowerCase().replace(/[^a-z0-9-]/g, "").slice(0, 20) || "me";
+  const isGuest = login === "guest";
+  const base = isGuest
+    ? "portfolio"
+    : login.toLowerCase().replace(/[^a-z0-9-]/g, "").slice(0, 20) || "me";
+  const content = defaultContent();
   const record: PortfolioRecord = {
     id: uid() + uid(),
     slug: `${base}-${uid().slice(0, 4)}`,
     title: opts?.title ?? "My Portfolio",
     content: {
-      ...defaultContent(),
-      name: login,
-      githubUsername: login,
-      contact: { ...defaultContent().contact, github: `https://github.com/${login}` },
+      ...content,
+      name: isGuest ? "Your Name" : login,
+      githubUsername: isGuest ? "" : login,
+      contact: {
+        ...content.contact,
+        github: isGuest ? "" : `https://github.com/${login}`,
+      },
     },
     theme: defaultTheme(),
     sections: defaultSections(),
