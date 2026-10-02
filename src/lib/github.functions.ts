@@ -30,11 +30,10 @@ function headers(token: string): HeadersInit {
 }
 
 async function gh(token: string, path: string, init?: RequestInit) {
-  const res = await fetch(`${API}${path}`, {
+  return fetch(`${API}${path}`, {
     ...init,
     headers: { ...headers(token), ...(init?.headers as Record<string, string> | undefined) },
   });
-  return res;
 }
 
 function toBase64(text: string) {
@@ -59,10 +58,8 @@ async function ensureRepo(token: string, login: string, repoName: string, descri
       }),
     });
     if (!created.ok) {
-      const body = await created.text();
-      throw new Error(`Could not create repo (${created.status}): ${body}`);
+      throw new Error(`Could not create repo (${created.status}): ${await created.text()}`);
     }
-    // Wait until contents API is ready (auto_init README)
     for (let i = 0; i < 8; i++) {
       await sleep(400 + i * 200);
       res = await gh(token, `/repos/${login}/${repoName}`);
@@ -72,7 +69,7 @@ async function ensureRepo(token: string, login: string, repoName: string, descri
     throw new Error(`GitHub error (${res.status}): ${await res.text()}`);
   }
 
-  const info = (await res.json()) as { default_branch?: string; full_name?: string };
+  const info = (await res.json()) as { default_branch?: string };
   return { defaultBranch: info.default_branch || "main" };
 }
 
@@ -86,10 +83,12 @@ async function putFile(
   branch: string,
 ) {
   let sha: string | undefined;
-  const existing = await gh(token, `/repos/${login}/${repoName}/contents/${encodeURIComponent(path).replace(/%2F/g, "/")}?ref=${branch}`);
+  const existing = await gh(
+    token,
+    `/repos/${login}/${repoName}/contents/${path}?ref=${branch}`,
+  );
   if (existing.ok) {
-    const body = (await existing.json()) as { sha?: string };
-    sha = body.sha;
+    sha = ((await existing.json()) as { sha?: string }).sha;
   }
 
   for (let attempt = 0; attempt < 3; attempt++) {
@@ -105,71 +104,55 @@ async function putFile(
 
     if (put.ok) return;
 
-    // Conflict: refresh sha and retry
     if (put.status === 409 || put.status === 422) {
-      const again = await gh(
-        token,
-        `/repos/${login}/${repoName}/contents/${path}?ref=${branch}`,
-      );
+      const again = await gh(token, `/repos/${login}/${repoName}/contents/${path}?ref=${branch}`);
       if (again.ok) {
         sha = ((await again.json()) as { sha?: string }).sha;
         continue;
       }
     }
 
-    const errText = await put.text();
-    throw new Error(`Push ${path} failed (${put.status}): ${errText}`);
+    throw new Error(`Push ${path} failed (${put.status}): ${await put.text()}`);
   }
 
   throw new Error(`Push ${path} failed after retries`);
 }
 
 async function enablePages(token: string, login: string, repoName: string, branch: string) {
-  // Build type: legacy from branch root
   const body = JSON.stringify({
     build_type: "legacy",
     source: { branch, path: "/" },
   });
 
-  let res = await gh(token, `/repos/${login}/${repoName}/pages`, {
-    method: "POST",
-    body,
-  });
-
-  // Already exists → update
+  let res = await gh(token, `/repos/${login}/${repoName}/pages`, { method: "POST", body });
   if (res.status === 409) {
-    res = await gh(token, `/repos/${login}/${repoName}/pages`, {
-      method: "PUT",
-      body,
-    });
+    res = await gh(token, `/repos/${login}/${repoName}/pages`, { method: "PUT", body });
   }
-
-  // Some accounts still use the older shape without build_type
   if (!res.ok && res.status !== 409) {
     const fallback = await gh(token, `/repos/${login}/${repoName}/pages`, {
       method: "POST",
       body: JSON.stringify({ source: { branch, path: "/" } }),
     });
     if (!fallback.ok && fallback.status !== 409) {
-      // Non-fatal: site files are still in the repo
       console.warn("Pages enable:", fallback.status, await fallback.text());
     }
   }
 }
 
+const publishInput = z.object({
+  token: z.string().min(10),
+  login: z.string().min(1),
+  repo: z.string().min(1).max(100),
+  portfolio: portfolioSchema,
+});
+
 export const publishToGithub = createServerFn({ method: "POST" })
-  .inputValidator((d: unknown) =>
-    z
-      .object({
-        token: z.string().min(10),
-        login: z.string().min(1),
-        repo: z.string().min(1).max(100),
-        portfolio: portfolioSchema,
-      })
-      .parse(d),
-  )
+  .validator((d: unknown) => publishInput.parse(d))
   .handler(async ({ data }) => {
-    const repoName = data.repo.replace(/[^A-Za-z0-9._-]/g, "-").replace(/^-+|-+$/g, "").slice(0, 100);
+    const repoName = data.repo
+      .replace(/[^A-Za-z0-9._-]/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 100);
     if (!repoName) throw new Error("Invalid repository name");
 
     const { defaultBranch } = await ensureRepo(
@@ -200,11 +183,17 @@ export const publishToGithub = createServerFn({ method: "POST" })
       2,
     );
 
-    const readme = `# ${data.portfolio.title || "Portfolio"}\n\nPublished with [Folio](https://${data.login}.github.io/${repoName}/).\n\n**Live site:** https://${data.login}.github.io/${repoName}/\n`;
+    const readme = [
+      `# ${data.portfolio.title || "Portfolio"}`,
+      "",
+      `Published with Folio.`,
+      "",
+      `**Live site:** https://${data.login}.github.io/${repoName}/`,
+      "",
+    ].join("\n");
 
     const stamp = new Date().toISOString();
 
-    // .nojekyll first so Pages serves raw HTML/CSS
     await putFile(data.token, data.login, repoName, ".nojekyll", "", `chore: disable jekyll ${stamp}`, defaultBranch);
     await putFile(data.token, data.login, repoName, "index.html", html, `Update portfolio ${stamp}`, defaultBranch);
     await putFile(data.token, data.login, repoName, "folio.json", folioJson, `Update folio data ${stamp}`, defaultBranch);
