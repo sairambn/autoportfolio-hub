@@ -19,6 +19,7 @@ import { Route as DemoSakuraRouteImport } from './routes/demo.sakura'
 import { Route as PSlugRouteImport } from './routes/p.$slug'
 import { Route as AuthenticatedEditorIdRouteImport } from './routes/_authenticated/editor.$id'
 import { Route as ApiAuthGithubRouteImport } from './routes/api/auth/github'
+import { Route as ApiAuthGoogleRouteImport } from './routes/api/auth/google'
 import { Route as OauthGithubReturnRouteImport } from './routes/oauth/github/return'
 
 const IndexRoute = IndexRouteImport.update({
@@ -70,6 +71,11 @@ const ApiAuthGithubRoute = ApiAuthGithubRouteImport.update({
   path: '/api/auth/github',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAuthGoogleRoute = ApiAuthGoogleRouteImport.update({
+  id: '/api/auth/google',
+  path: '/api/auth/google',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const OauthGithubReturnRoute = OauthGithubReturnRouteImport.update({
   id: '/oauth/github/return',
   path: '/oauth/github/return',
@@ -86,6 +92,7 @@ export interface FileRoutesByFullPath {
   '/p/$slug': typeof PSlugRoute
   '/editor/$id': typeof AuthenticatedEditorIdRoute
   '/api/auth/github': typeof ApiAuthGithubRoute
+  '/api/auth/google': typeof ApiAuthGoogleRoute
   '/oauth/github/return': typeof OauthGithubReturnRoute
 }
 export interface FileRoutesByTo {
@@ -98,6 +105,7 @@ export interface FileRoutesByTo {
   '/p/$slug': typeof PSlugRoute
   '/editor/$id': typeof AuthenticatedEditorIdRoute
   '/api/auth/github': typeof ApiAuthGithubRoute
+  '/api/auth/google': typeof ApiAuthGoogleRoute
   '/oauth/github/return': typeof OauthGithubReturnRoute
 }
 export interface FileRoutesById {
@@ -112,6 +120,7 @@ export interface FileRoutesById {
   '/p/$slug': typeof PSlugRoute
   '/_authenticated/editor/$id': typeof AuthenticatedEditorIdRoute
   '/api/auth/github': typeof ApiAuthGithubRoute
+  '/api/auth/google': typeof ApiAuthGoogleRoute
   '/oauth/github/return': typeof OauthGithubReturnRoute
 }
 export interface FileRouteTypes {
@@ -126,6 +135,7 @@ export interface FileRouteTypes {
     | '/p/$slug'
     | '/editor/$id'
     | '/api/auth/github'
+    | '/api/auth/google'
     | '/oauth/github/return'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -138,6 +148,7 @@ export interface FileRouteTypes {
     | '/p/$slug'
     | '/editor/$id'
     | '/api/auth/github'
+    | '/api/auth/google'
     | '/oauth/github/return'
   id:
     | '__root__'
@@ -151,6 +162,7 @@ export interface FileRouteTypes {
     | '/p/$slug'
     | '/_authenticated/editor/$id'
     | '/api/auth/github'
+    | '/api/auth/google'
     | '/oauth/github/return'
   fileRoutesById: FileRoutesById
 }
@@ -162,6 +174,7 @@ export interface RootRouteChildren {
   DemoSakuraRoute: typeof DemoSakuraRoute
   PSlugRoute: typeof PSlugRoute
   ApiAuthGithubRoute: typeof ApiAuthGithubRoute
+  ApiAuthGoogleRoute: typeof ApiAuthGoogleRoute
   OauthGithubReturnRoute: typeof OauthGithubReturnRoute
 }
 
@@ -237,6 +250,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAuthGithubRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/auth/google': {
+      id: '/api/auth/google'
+      path: '/api/auth/google'
+      fullPath: '/api/auth/google'
+      preLoaderRoute: typeof ApiAuthGoogleRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/oauth/github/return': {
       id: '/oauth/github/return'
       path: '/oauth/github/return'
@@ -278,6 +298,7 @@ const rootRouteChildren: RootRouteChildren = {
   DemoSakuraRoute: DemoSakuraRoute,
   PSlugRoute: PSlugRoute,
   ApiAuthGithubRoute: ApiAuthGithubRoute,
+  ApiAuthGoogleRoute: ApiAuthGoogleRoute,
   OauthGithubReturnRoute: OauthGithubReturnRoute,
 }
 export const routeTree = rootRouteImport

@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { fetchGithubUser, saveSession } from "@/lib/auth";
+import { fetchGithubUser, fetchGoogleUser, saveSession } from "@/lib/auth";
 
 export const Route = createFileRoute("/auth/callback")({
   head: () => ({
@@ -17,6 +17,7 @@ function Callback() {
     const params = new URLSearchParams(window.location.search);
     const err = params.get("error");
     const token = params.get("token");
+    const provider = params.get("provider");
     if (err) {
       setMsg(err);
       return;
@@ -27,11 +28,15 @@ function Callback() {
     }
     (async () => {
       try {
-        const user = await fetchGithubUser(token);
+        const user =
+          provider === "google"
+            ? await fetchGoogleUser(token)
+            : await fetchGithubUser(token);
         saveSession({
           token,
           user,
           expiresAt: Date.now() + 1000 * 60 * 60 * 24 * 30,
+          provider: provider === "google" ? "google" : "github",
         });
         // Clean URL so token isn't left in history
         window.history.replaceState({}, "", "/auth/callback");

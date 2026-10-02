@@ -11,6 +11,7 @@ export type AuthSession = {
   token: string;
   user: GithubUser;
   expiresAt: number;
+  provider?: "github" | "google";
 };
 
 const KEY = "folio_github_session";
@@ -106,4 +107,47 @@ export async function signInWithToken(token: string) {
 export function startGithubLogin() {
   const returnTo = encodeURIComponent(window.location.origin + "/auth/callback");
   window.location.href = `/api/auth/github?return_to=${returnTo}`;
+}
+
+/** Start Google OAuth (needs GOOGLE_CLIENT_ID on the server). */
+export function startGoogleLogin() {
+  window.location.href =
+    "/api/auth/google?return_to=" +
+    encodeURIComponent(window.location.origin + "/auth/callback");
+}
+
+/** Fetch Google user info and map to GithubUser shape. */
+export async function fetchGoogleUser(token: string): Promise<GithubUser> {
+  const res = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) {
+    const t = await res.text();
+    throw new Error(
+      res.status === 401
+        ? "Invalid or expired Google token"
+        : `Google profile failed (${res.status}): ${t}`,
+    );
+  }
+  const u = (await res.json()) as {
+    sub: string;
+    name?: string;
+    given_name?: string;
+    email?: string;
+    picture?: string;
+    email_verified?: boolean;
+  };
+  const login =
+    u.email
+      ?.split("@")[0]
+      .toLowerCase()
+      .replace(/[^a-z0-9-]/g, "") || "user";
+  return {
+    id: parseInt(u.sub.slice(0, 9), 10) || 0,
+    login,
+    name: u.name ?? null,
+    avatar_url: u.picture ?? "",
+    html_url: "",
+    email: u.email ?? null,
+  };
 }
