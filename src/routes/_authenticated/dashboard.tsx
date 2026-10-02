@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { ExternalLink, Plus, Trash2 } from "lucide-react";
+import { ExternalLink, Plus, Trash2, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { clearSession } from "@/lib/auth";
 import {
@@ -24,6 +24,7 @@ function Dashboard() {
   const { session } = Route.useRouteContext();
   const nav = useNavigate();
   const login = session.user.login;
+  const guest = login === "guest" || !session.token;
   const [list, setList] = useState<PortfolioRecord[]>(() => listPortfolios(login));
 
   useEffect(() => {
@@ -57,15 +58,27 @@ function Dashboard() {
           Folio.
         </Link>
         <div className="flex items-center gap-3">
-          <img
-            src={session.user.avatar_url}
-            alt=""
-            className="size-8 rounded-full border-2 border-ink"
-          />
-          <span className="text-sm font-medium">@{login}</span>
-          <Button variant="ghost" onClick={signOut}>
-            Sign out
-          </Button>
+          {session.user.avatar_url ? (
+            <img
+              src={session.user.avatar_url}
+              alt=""
+              className="size-8 rounded-full border-2 border-ink"
+            />
+          ) : (
+            <div className="grid size-8 place-items-center rounded-full border-2 border-ink bg-muted">
+              <User className="size-4" />
+            </div>
+          )}
+          <span className="text-sm font-medium">{guest ? "Guest" : `@${login}`}</span>
+          {guest ? (
+            <Button asChild variant="blockOutline" size="sm">
+              <Link to="/auth">Sign in</Link>
+            </Button>
+          ) : (
+            <Button variant="ghost" onClick={signOut}>
+              Sign out
+            </Button>
+          )}
         </div>
       </nav>
       <main className="mx-auto max-w-5xl px-6 pb-20">
@@ -73,7 +86,7 @@ function Dashboard() {
           <div>
             <h1 className="text-5xl font-black">Your portfolios</h1>
             <p className="mt-2 text-sm text-muted-foreground">
-              Saved in this browser only. Publish to put a live site on GitHub Pages.
+              Saved in this browser. Download HTML anytime — or publish to GitHub if you signed in.
             </p>
           </div>
           <Button variant="block" onClick={create}>
@@ -104,7 +117,9 @@ function Dashboard() {
                   </span>
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  {p.github_repo ? `github.com/${login}/${p.github_repo}` : "Not published yet"}
+                  {p.github_repo && !guest
+                    ? `github.com/${login}/${p.github_repo}`
+                    : "Download HTML or publish later"}
                 </p>
                 <div className="mt-6 flex gap-2">
                   <Button asChild variant="block" size="sm">
@@ -112,7 +127,7 @@ function Dashboard() {
                       Edit
                     </Link>
                   </Button>
-                  {p.github_repo ? (
+                  {p.github_repo && !guest ? (
                     <Button asChild variant="blockOutline" size="sm">
                       <a
                         href={`https://${login}.github.io/${p.github_repo}/`}
