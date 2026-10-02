@@ -1,63 +1,64 @@
 import type { Content, Experience, Project } from "./portfolio";
 
-const TECH_WORDS = [
-  "JavaScript",
-  "TypeScript",
-  "Python",
-  "Java",
-  "C\+\+",
-  "C#",
-  "Go",
-  "Rust",
-  "Kotlin",
-  "Swift",
-  "PHP",
-  "Ruby",
-  "React",
-  "Next\\.js",
-  "Nextjs",
-  "Vue",
-  "Angular",
-  "Node\\.js",
-  "Nodejs",
-  "Express",
-  "Django",
-  "Flask",
-  "Spring",
-  "HTML",
-  "CSS",
-  "Tailwind",
-  "SQL",
-  "PostgreSQL",
-  "MySQL",
-  "MongoDB",
-  "Redis",
-  "AWS",
-  "Azure",
-  "GCP",
-  "Docker",
-  "Kubernetes",
-  "Git",
-  "GitHub",
-  "Linux",
-  "Figma",
-  "GraphQL",
-  "REST",
-  "API",
-  "Machine Learning",
-  "TensorFlow",
-  "PyTorch",
-  "Pandas",
-  "NumPy",
-  "Excel",
-  "Power BI",
-  "Tableau",
-  "Salesforce",
-  "SAP",
-  "Android",
-  "iOS",
-  "Flutter",
-  "React Native",
+// Each entry: { pattern: regex-safe pattern, display: nice label }
+const TECH_WORDS: { pattern: string; display: string }[] = [
+  { pattern: "JavaScript", display: "JavaScript" },
+  { pattern: "TypeScript", display: "TypeScript" },
+  { pattern: "Python", display: "Python" },
+  { pattern: "Java(?!Script)", display: "Java" },
+  { pattern: "C\\+\\+", display: "C++" },
+  { pattern: "C#", display: "C#" },
+  { pattern: "\\bGo\\b", display: "Go" },
+  { pattern: "Rust", display: "Rust" },
+  { pattern: "Kotlin", display: "Kotlin" },
+  { pattern: "Swift", display: "Swift" },
+  { pattern: "PHP", display: "PHP" },
+  { pattern: "Ruby", display: "Ruby" },
+  { pattern: "React(?! Native)", display: "React" },
+  { pattern: "Next\\.js", display: "Next.js" },
+  { pattern: "Nextjs", display: "Next.js" },
+  { pattern: "\\bVue\\b", display: "Vue" },
+  { pattern: "Angular", display: "Angular" },
+  { pattern: "Node\\.js", display: "Node.js" },
+  { pattern: "Nodejs", display: "Node.js" },
+  { pattern: "Express", display: "Express" },
+  { pattern: "Django", display: "Django" },
+  { pattern: "Flask", display: "Flask" },
+  { pattern: "Spring", display: "Spring" },
+  { pattern: "HTML", display: "HTML" },
+  { pattern: "CSS", display: "CSS" },
+  { pattern: "Tailwind", display: "Tailwind" },
+  { pattern: "\\bSQL\\b", display: "SQL" },
+  { pattern: "PostgreSQL", display: "PostgreSQL" },
+  { pattern: "MySQL", display: "MySQL" },
+  { pattern: "MongoDB", display: "MongoDB" },
+  { pattern: "Redis", display: "Redis" },
+  { pattern: "AWS", display: "AWS" },
+  { pattern: "Azure", display: "Azure" },
+  { pattern: "GCP", display: "GCP" },
+  { pattern: "Docker", display: "Docker" },
+  { pattern: "Kubernetes", display: "Kubernetes" },
+  { pattern: "\\bGit\\b", display: "Git" },
+  { pattern: "GitHub", display: "GitHub" },
+  { pattern: "Linux", display: "Linux" },
+  { pattern: "Figma", display: "Figma" },
+  { pattern: "GraphQL", display: "GraphQL" },
+  { pattern: "REST", display: "REST" },
+  { pattern: "\\bAPI\\b", display: "API" },
+  { pattern: "Machine Learning", display: "Machine Learning" },
+  { pattern: "TensorFlow", display: "TensorFlow" },
+  { pattern: "PyTorch", display: "PyTorch" },
+  { pattern: "Pandas", display: "Pandas" },
+  { pattern: "NumPy", display: "NumPy" },
+  { pattern: "Excel", display: "Excel" },
+  { pattern: "Power BI", display: "Power BI" },
+  { pattern: "Tableau", display: "Tableau" },
+  { pattern: "Salesforce", display: "Salesforce" },
+  { pattern: "\\bSAP\\b", display: "SAP" },
+  { pattern: "Android", display: "Android" },
+  { pattern: "\\biOS\\b", display: "iOS" },
+  { pattern: "Flutter", display: "Flutter" },
+  { pattern: "React Native", display: "React Native" },
 ];
 
 /** Resume text → portfolio fields (browser-only, no server). */
@@ -191,12 +192,19 @@ function guessHeadline(lines: string[], name: string): string {
 }
 
 function extractTechKeywords(text: string): string[] {
+  const seen = new Set<string>();
   const found: string[] = [];
-  for (const w of TECH_WORDS) {
-    const re = new RegExp(`\\b${w}\\b`, "i");
+  for (const { pattern, display } of TECH_WORDS) {
+    if (seen.has(display)) continue;
+    let re: RegExp;
+    try {
+      re = new RegExp(pattern, "i");
+    } catch {
+      continue; // skip any pattern that is somehow invalid
+    }
     if (re.test(text)) {
-      const nice = w.replace(/\\/g, "");
-      found.push(nice === "Nextjs" ? "Next.js" : nice === "Nodejs" ? "Node.js" : nice);
+      seen.add(display);
+      found.push(display);
     }
   }
   return found;
