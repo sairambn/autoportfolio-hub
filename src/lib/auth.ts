@@ -21,7 +21,7 @@ export function loadSession(): AuthSession | null {
     const raw = localStorage.getItem(KEY);
     if (!raw) return null;
     const s = JSON.parse(raw) as AuthSession;
-    if (!s?.token || !s?.user?.login) return null;
+    if (!s?.user?.login) return null;
     return s;
   } catch {
     return null;
@@ -36,6 +36,30 @@ export function saveSession(session: AuthSession) {
 export function clearSession() {
   localStorage.removeItem(KEY);
   window.dispatchEvent(new Event("folio-auth-change"));
+}
+
+export function isGuestSession(session: AuthSession | null | undefined) {
+  return !session?.token || session.user.login === "guest";
+}
+
+/** Instant start — no account. Drafts stay in this browser. */
+export function ensureGuestSession(): AuthSession {
+  const existing = loadSession();
+  if (existing) return existing;
+  const session: AuthSession = {
+    token: "",
+    user: {
+      id: 0,
+      login: "guest",
+      name: "Guest",
+      avatar_url: "",
+      html_url: "",
+      email: null,
+    },
+    expiresAt: Date.now() + 1000 * 60 * 60 * 24 * 365,
+  };
+  saveSession(session);
+  return session;
 }
 
 export async function fetchGithubUser(token: string): Promise<GithubUser> {
@@ -65,7 +89,7 @@ export async function fetchGithubUser(token: string): Promise<GithubUser> {
   };
 }
 
-/** Sign in with a personal access token (classic or fine-grained with repo write). */
+/** Sign in with a personal access token. */
 export async function signInWithToken(token: string) {
   const clean = token.trim();
   if (!clean) throw new Error("Paste a GitHub token");
@@ -78,7 +102,7 @@ export async function signInWithToken(token: string) {
   return user;
 }
 
-/** Start GitHub OAuth (redirect). Needs GITHUB_CLIENT_ID on the server. */
+/** Start GitHub OAuth (needs GITHUB_CLIENT_ID on the server). */
 export function startGithubLogin() {
   const returnTo = encodeURIComponent(window.location.origin + "/auth/callback");
   window.location.href = `/api/auth/github?return_to=${returnTo}`;
