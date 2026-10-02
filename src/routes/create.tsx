@@ -21,6 +21,7 @@ import { publishPortfolio } from "@/lib/github-client";
 import {
   defaultContent,
   defaultSections,
+  TEMPLATE_ORDER,
   TEMPLATES,
   type Content,
   type TemplateId,
@@ -35,8 +36,7 @@ export const Route = createFileRoute("/create")({
       { title: "Create portfolio — Folio" },
       {
         name: "description",
-        content:
-          "Upload photo and PDF resume. Edits update your portfolio website instantly.",
+        content: "Choose from 7 themes. Upload resume and photo. Deploy a live portfolio.",
       },
     ],
   }),
@@ -48,7 +48,7 @@ type Step = 1 | 2 | 3 | 4;
 function CreateWizard() {
   const [step, setStep] = useState<Step>(1);
   const [busy, setBusy] = useState(false);
-  const [template, setTemplate] = useState<TemplateId>("editorial");
+  const [template, setTemplate] = useState<TemplateId>("signal");
   const [content, setContent] = useState<Content>(() => defaultContent());
   const [resumeNote, setResumeNote] = useState("");
   const [resumePaste, setResumePaste] = useState("");
@@ -131,7 +131,6 @@ function CreateWizard() {
           twitter: c.contact.twitter,
         },
       };
-      // If name still default but email found, force name from email
       if ((!parsed.name || next.name === "Your Name") && next.contact.email) {
         const local = next.contact.email.split("@")[0] || "";
         const parts = local
@@ -383,12 +382,6 @@ function CreateWizard() {
                     placeholder="your-handle"
                   />
                 </div>
-                {content.experience.length > 0 ? (
-                  <p className="text-xs text-muted-foreground">
-                    {content.experience.length} experience entr{content.experience.length === 1 ? "y" : "ies"}{" "}
-                    imported from resume (editable later in the full editor).
-                  </p>
-                ) : null}
               </div>
 
               <div className="flex justify-between pt-2">
@@ -418,24 +411,51 @@ function CreateWizard() {
         )}
 
         {step === 3 && (
-          <section className="mx-auto max-w-2xl space-y-6">
-            <h1 className="text-4xl font-black">Pick a style</h1>
-            <div className="grid grid-cols-2 gap-3">
-              {(Object.keys(TEMPLATES) as TemplateId[]).map((id) => (
-                <button
-                  key={id}
-                  type="button"
-                  onClick={() => setTemplate(id)}
-                  className={`rounded-md border-2 p-4 text-left font-semibold capitalize ${
-                    template === id ? "border-primary bg-primary/10" : "border-ink/20"
-                  }`}
-                >
-                  {TEMPLATES[id].label}
-                </button>
-              ))}
+          <section className="space-y-6">
+            <div className="mx-auto max-w-3xl text-center">
+              <h1 className="text-4xl font-black">Pick a theme</h1>
+              <p className="mt-2 text-muted-foreground">
+                Seven styles — click one to preview, then build.
+              </p>
             </div>
-            <div className="overflow-hidden rounded-lg border-2 border-ink">
-              <div className="max-h-[40vh] overflow-y-auto">
+
+            <div className="mx-auto grid max-w-4xl gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {TEMPLATE_ORDER.map((id) => {
+                const meta = TEMPLATES[id];
+                const p = meta.theme.palette;
+                const selected = template === id;
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => setTemplate(id)}
+                    className={`rounded-xl border-2 p-4 text-left transition ${
+                      selected
+                        ? "border-primary ring-2 ring-primary/30"
+                        : "border-ink/15 hover:border-ink/40"
+                    }`}
+                  >
+                    <div
+                      className="mb-3 flex h-14 overflow-hidden rounded-lg border border-black/10"
+                      aria-hidden
+                    >
+                      <div className="flex-1" style={{ background: p.bg }} />
+                      <div className="w-1/4" style={{ background: p.surface }} />
+                      <div className="w-1/5" style={{ background: p.accent }} />
+                      <div className="w-1/6" style={{ background: p.fg }} />
+                    </div>
+                    <div className="font-bold">{meta.label}</div>
+                    <div className="mt-1 text-xs text-muted-foreground">{meta.blurb}</div>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="mx-auto max-w-3xl overflow-hidden rounded-xl border-2 border-ink">
+              <div className="border-b-2 border-ink bg-muted/40 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Preview · {TEMPLATES[template].label}
+              </div>
+              <div className="max-h-[50vh] overflow-y-auto">
                 <PortfolioView
                   content={content}
                   theme={TEMPLATES[template].theme}
@@ -444,7 +464,8 @@ function CreateWizard() {
                 />
               </div>
             </div>
-            <div className="flex justify-between">
+
+            <div className="mx-auto flex max-w-3xl justify-between">
               <Button variant="ghost" onClick={() => setStep(2)}>
                 <ArrowLeft /> Back
               </Button>
@@ -465,7 +486,8 @@ function CreateWizard() {
               <h1 className="text-4xl font-black">Portfolio ready</h1>
             </div>
             <p className="text-muted-foreground">
-              Your website is built from the resume data. Deploy to GitHub Pages for a public URL.
+              Theme: <strong>{TEMPLATES[template].label}</strong>. Deploy to GitHub Pages for a
+              public URL.
             </p>
 
             {liveUrl ? (
