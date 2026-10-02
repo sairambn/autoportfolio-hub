@@ -1,109 +1,221 @@
 import { createServerFn } from "@tanstack/react-start";
-import { getRequest } from "@tanstack/react-start/server";
 import { z } from "zod";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { renderPortfolioHtml } from "./export-html";
 
-const CONNECTOR = "github";
-const SCOPES = ["read:user", "public_repo"];
+const API = "https://api.github.com";
 
-export const githubStatus = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    const configured = !!process.env["GITHUB_APP_USER_CONNECTOR_CLIENT_API_KEY"];
-    if (!configured) return { configured: false, connected: false, login: null as string | null };
-    const { getConnection } = await import("./connections.server");
-    const conn = await getConnection(context.userId, CONNECTOR);
-    return { configured: true, connected: !!conn, login: conn?.login ?? null };
+const portfolioSchema = z.object({
+  id: z.string(),
+  slug: z.string(),
+  title: z.string(),
+  content: z.any(),
+  theme: z.any(),
+  sections: z.any(),
+  published: z.boolean().optional(),
+  github_repo: z.string().nullable().optional(),
+  auto_push: z.boolean().optional(),
+  last_pushed_at: z.string().nullable().optional(),
+  updated_at: z.string().optional(),
+  created_at: z.string().optional(),
+});
+
+function headers(token: string): HeadersInit {
+  return {
+    Accept: "application/vnd.github+json",
+    Authorization: `Bearer ${token}`,
+    "X-GitHub-Api-Version": "2022-11-28",
+    "Content-Type": "application/json",
+    "User-Agent": "folio-portfolio-builder",
+  };
+}
+
+async function gh(token: string, path: string, init?: RequestInit) {
+  const res = await fetch(`${API}${path}`, {
+    ...init,
+    headers: { ...headers(token), ...(init?.headers as Record<string, string> | undefined) },
   });
+  return res;
+}
 
-export const startGithubConnect = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    const clientKey = process.env["GITHUB_APP_USER_CONNECTOR_CLIENT_API_KEY"];
-    if (!clientKey) throw new Error("GitHub connection isn't set up for this app yet.");
-    const { authorizeAppUserOAuth } = await import("./appUserConnector.server");
-    const { getConnection } = await import("./connections.server");
-    const request = getRequest();
-    const url = new URL(request.url);
-    const sandboxHost = url.hostname === "localhost" ? request.headers.get("x-forwarded-host") : null;
-    const returnUrl = new URL("/oauth/github/return", sandboxHost ? `https://${sandboxHost}` : url.origin).toString();
-    const existing = await getConnection(context.userId, CONNECTOR);
-    return authorizeAppUserOAuth({
-      connectorId: CONNECTOR, appUserId: context.userId, clientAPIKey: clientKey, returnUrl,
-      connectionAPIKey: existing?.key, credentialsConfiguration: { scopes: SCOPES },
+function toBase64(text: string) {
+  return Buffer.from(text, "utf8").toString("base64");
+}
+
+async function sleep(ms: number) {
+  await new Promise((r) => setTimeout(r, ms));
+}
+
+async function ensureRepo(token: string, login: string, repoName: string, description: string) {
+  let res = await gh(token, `/repos/${login}/${repoName}`);
+  if (res.status === 404) {
+    const created = await gh(token, "/user/repos", {
+      method: "POST",
+      body: JSON.stringify({
+        name: repoName,
+        description: description || "My portfolio",
+        auto_init: true,
+        private: false,
+        homepage: `https://${login}.github.io/${repoName}/`,
+      }),
     });
+    if (!created.ok) {
+      const body = await created.text();
+      throw new Error(`Could not create repo (${created.status}): ${body}`);
+    }
+    // Wait until contents API is ready (auto_init README)
+    for (let i = 0; i < 8; i++) {
+      await sleep(400 + i * 200);
+      res = await gh(token, `/repos/${login}/${repoName}`);
+      if (res.ok) break;
+    }
+  } else if (!res.ok) {
+    throw new Error(`GitHub error (${res.status}): ${await res.text()}`);
+  }
+
+  const info = (await res.json()) as { default_branch?: string; full_name?: string };
+  return { defaultBranch: info.default_branch || "main" };
+}
+
+async function putFile(
+  token: string,
+  login: string,
+  repoName: string,
+  path: string,
+  content: string,
+  message: string,
+  branch: string,
+) {
+  let sha: string | undefined;
+  const existing = await gh(token, `/repos/${login}/${repoName}/contents/${encodeURIComponent(path).replace(/%2F/g, "/")}?ref=${branch}`);
+  if (existing.ok) {
+    const body = (await existing.json()) as { sha?: string };
+    sha = body.sha;
+  }
+
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const put = await gh(token, `/repos/${login}/${repoName}/contents/${path}`, {
+      method: "PUT",
+      body: JSON.stringify({
+        message,
+        content: toBase64(content),
+        branch,
+        ...(sha ? { sha } : {}),
+      }),
+    });
+
+    if (put.ok) return;
+
+    // Conflict: refresh sha and retry
+    if (put.status === 409 || put.status === 422) {
+      const again = await gh(
+        token,
+        `/repos/${login}/${repoName}/contents/${path}?ref=${branch}`,
+      );
+      if (again.ok) {
+        sha = ((await again.json()) as { sha?: string }).sha;
+        continue;
+      }
+    }
+
+    const errText = await put.text();
+    throw new Error(`Push ${path} failed (${put.status}): ${errText}`);
+  }
+
+  throw new Error(`Push ${path} failed after retries`);
+}
+
+async function enablePages(token: string, login: string, repoName: string, branch: string) {
+  // Build type: legacy from branch root
+  const body = JSON.stringify({
+    build_type: "legacy",
+    source: { branch, path: "/" },
   });
 
-export const completeGithubConnect = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((d: unknown) => z.object({ code: z.string().min(1) }).parse(d))
-  .handler(async ({ data, context }) => {
-    const { exchangeAppUserOAuthCode, callAsAppUser } = await import("./appUserConnector.server");
-    const { saveConnection } = await import("./connections.server");
-    const { connectionAPIKey, connectorId } = await exchangeAppUserOAuthCode(data.code);
-    if (connectorId !== CONNECTOR) throw new Error("Wrong connector");
-    const me = await callAsAppUser({ connectionAPIKey, connectorId, path: "/user", init: { headers: { Accept: "application/vnd.github+json" } } });
-    const login = me.ok ? ((await me.json()) as { login: string }).login : null;
-    await saveConnection(context.userId, connectorId, connectionAPIKey, login);
-    return { ok: true, login };
+  let res = await gh(token, `/repos/${login}/${repoName}/pages`, {
+    method: "POST",
+    body,
   });
 
-export const disconnectGithub = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    const { getConnection, deleteConnection } = await import("./connections.server");
-    const { disconnectAppUser } = await import("./appUserConnector.server");
-    const conn = await getConnection(context.userId, CONNECTOR);
-    if (conn) await disconnectAppUser(conn.key, CONNECTOR).catch((e) => console.error(e));
-    await deleteConnection(context.userId, CONNECTOR);
-    return { ok: true };
-  });
+  // Already exists → update
+  if (res.status === 409) {
+    res = await gh(token, `/repos/${login}/${repoName}/pages`, {
+      method: "PUT",
+      body,
+    });
+  }
+
+  // Some accounts still use the older shape without build_type
+  if (!res.ok && res.status !== 409) {
+    const fallback = await gh(token, `/repos/${login}/${repoName}/pages`, {
+      method: "POST",
+      body: JSON.stringify({ source: { branch, path: "/" } }),
+    });
+    if (!fallback.ok && fallback.status !== 409) {
+      // Non-fatal: site files are still in the repo
+      console.warn("Pages enable:", fallback.status, await fallback.text());
+    }
+  }
+}
 
 export const publishToGithub = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((d: unknown) => z.object({ portfolioId: z.string().uuid(), repo: z.string().regex(/^[A-Za-z0-9._-]{1,100}$/) }).parse(d))
-  .handler(async ({ data, context }) => {
-    const { getConnection } = await import("./connections.server");
-    const { callAsAppUser, appUserReconnectRequired } = await import("./appUserConnector.server");
-    const { renderPortfolioHtml } = await import("./export-html");
-    const conn = await getConnection(context.userId, CONNECTOR);
-    if (!conn) throw new Error("Connect your GitHub account first.");
-    const { data: row, error } = await context.supabase.from("portfolios").select("*").eq("id", data.portfolioId).single();
-    if (error || !row) throw new Error("Portfolio not found");
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        token: z.string().min(10),
+        login: z.string().min(1),
+        repo: z.string().min(1).max(100),
+        portfolio: portfolioSchema,
+      })
+      .parse(d),
+  )
+  .handler(async ({ data }) => {
+    const repoName = data.repo.replace(/[^A-Za-z0-9._-]/g, "-").replace(/^-+|-+$/g, "").slice(0, 100);
+    if (!repoName) throw new Error("Invalid repository name");
 
-    const gh = (path: string, init?: RequestInit) => callAsAppUser({
-      connectionAPIKey: conn.key, connectorId: CONNECTOR, path, requiredScopes: SCOPES,
-      init: { ...init, headers: { Accept: "application/vnd.github+json", "Content-Type": "application/json", ...(init?.headers ?? {}) } },
+    const { defaultBranch } = await ensureRepo(
+      data.token,
+      data.login,
+      repoName,
+      data.portfolio.title || "My portfolio",
+    );
+
+    const html = await renderPortfolioHtml({
+      title: data.portfolio.title,
+      content: data.portfolio.content,
+      theme: data.portfolio.theme,
+      sections: data.portfolio.sections,
     });
 
-    let login = conn.login;
-    if (!login) {
-      const me = await gh("/user");
-      if (await appUserReconnectRequired(me)) throw new Error("Your GitHub access needs to be renewed. Reconnect GitHub.");
-      login = ((await me.json()) as { login: string }).login;
-    }
+    const folioJson = JSON.stringify(
+      {
+        id: data.portfolio.id,
+        title: data.portfolio.title,
+        slug: data.portfolio.slug,
+        content: data.portfolio.content,
+        theme: data.portfolio.theme,
+        sections: data.portfolio.sections,
+        updated_at: new Date().toISOString(),
+      },
+      null,
+      2,
+    );
 
-    const repoRes = await gh(`/repos/${login}/${data.repo}`);
-    if (repoRes.status === 404) {
-      const created = await gh("/user/repos", { method: "POST", body: JSON.stringify({ name: data.repo, auto_init: true, description: "My portfolio" }) });
-      if (!created.ok) throw new Error(`Couldn't create repo [${created.status}]: ${await created.text()}`);
-    } else if (!repoRes.ok) {
-      throw new Error(`GitHub error [${repoRes.status}]: ${await repoRes.text()}`);
-    }
+    const readme = `# ${data.portfolio.title || "Portfolio"}\n\nPublished with [Folio](https://${data.login}.github.io/${repoName}/).\n\n**Live site:** https://${data.login}.github.io/${repoName}/\n`;
 
-    const html = await renderPortfolioHtml(row);
-    const existing = await gh(`/repos/${login}/${data.repo}/contents/index.html`);
-    const sha = existing.ok ? ((await existing.json()) as { sha: string }).sha : undefined;
-    const put = await gh(`/repos/${login}/${data.repo}/contents/index.html`, {
-      method: "PUT",
-      body: JSON.stringify({ message: `Update portfolio ${new Date().toISOString()}`, content: Buffer.from(html, "utf8").toString("base64"), sha }),
-    });
-    if (!put.ok) throw new Error(`Push failed [${put.status}]: ${await put.text()}`);
+    const stamp = new Date().toISOString();
 
-    // Best effort: enable GitHub Pages on the default branch.
-    const pages = await gh(`/repos/${login}/${data.repo}/pages`, { method: "POST", body: JSON.stringify({ source: { branch: "main", path: "/" } }) });
-    if (!pages.ok && pages.status !== 409) console.warn("Pages enable:", pages.status, await pages.text());
+    // .nojekyll first so Pages serves raw HTML/CSS
+    await putFile(data.token, data.login, repoName, ".nojekyll", "", `chore: disable jekyll ${stamp}`, defaultBranch);
+    await putFile(data.token, data.login, repoName, "index.html", html, `Update portfolio ${stamp}`, defaultBranch);
+    await putFile(data.token, data.login, repoName, "folio.json", folioJson, `Update folio data ${stamp}`, defaultBranch);
+    await putFile(data.token, data.login, repoName, "README.md", readme, `Update README ${stamp}`, defaultBranch);
 
-    await context.supabase.from("portfolios").update({ github_repo: data.repo, last_pushed_at: new Date().toISOString() }).eq("id", data.portfolioId);
-    return { repoUrl: `https://github.com/${login}/${data.repo}`, pagesUrl: `https://${login}.github.io/${data.repo}/` };
+    await enablePages(data.token, data.login, repoName, defaultBranch);
+
+    return {
+      repo: repoName,
+      repoUrl: `https://github.com/${data.login}/${repoName}`,
+      pagesUrl: `https://${data.login}.github.io/${repoName}/`,
+      branch: defaultBranch,
+    };
   });
