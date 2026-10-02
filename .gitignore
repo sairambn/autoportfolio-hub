@@ -16,6 +16,13 @@ dist-ssr
 .nitro
 *.local
 
+# Environment variables — never commit secrets
+.env
+.env.local
+.env.*.local
+# .env.example is intentionally NOT ignored (safe template)
+
+
 # Wrangler / Cloudflare
 .wrangler/
 .dev.vars
