@@ -12,7 +12,6 @@ export function parseResumeText(raw: string): Partial<Content> {
 
   const email =
     text.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)?.[0] ?? "";
-  const phone = text.match(/(\+?\d[\d\s().-]{8,}\d)/)?.[0] ?? "";
   const linkedin =
     text.match(/https?:\/\/(?:www\.)?linkedin\.com\/in\/[^\s)]+/i)?.[0] ?? "";
   const github =
@@ -20,7 +19,6 @@ export function parseResumeText(raw: string): Partial<Content> {
   const website =
     text.match(/https?:\/\/(?!linkedin|github)[^\s)]+/i)?.[0] ?? "";
 
-  // First non-empty line that isn't an email/url often is the name
   let name = "";
   for (const line of lines.slice(0, 5)) {
     if (/@|https?:|linkedin|github|curriculum|resume|cv/i.test(line)) continue;
@@ -30,7 +28,6 @@ export function parseResumeText(raw: string): Partial<Content> {
     }
   }
 
-  // Headline: second short line or line with | or —
   let headline = "";
   for (const line of lines.slice(1, 8)) {
     if (line === name) continue;
@@ -41,7 +38,6 @@ export function parseResumeText(raw: string): Partial<Content> {
     }
   }
 
-  // Skills: look for a Skills section
   const skills = extractListSection(text, [
     "skills",
     "technical skills",
@@ -49,7 +45,6 @@ export function parseResumeText(raw: string): Partial<Content> {
     "tech stack",
   ]);
 
-  // Bio: summary / about / profile
   const bio =
     extractParagraphSection(text, ["summary", "profile", "about me", "about", "objective"]) ||
     lines.slice(2, 6).join(" ").slice(0, 400);
@@ -81,13 +76,9 @@ export function parseResumeText(raw: string): Partial<Content> {
 function extractListSection(text: string, headers: string[]): string[] {
   const lower = text.toLowerCase();
   let start = -1;
-  let headerLen = 0;
   for (const h of headers) {
     const i = lower.search(new RegExp(`(?:^|\n)\s*${escapeRe(h)}\s*[:\n]`, "i"));
-    if (i >= 0 && (start < 0 || i < start)) {
-      start = i;
-      headerLen = h.length;
-    }
+    if (i >= 0 && (start < 0 || i < start)) start = i;
   }
   if (start < 0) return [];
   const after = text.slice(start).split("\n").slice(1);
@@ -104,7 +95,6 @@ function extractListSection(text: string, headers: string[]): string[] {
       if (items.length) break;
       continue;
     }
-    // comma / pipe separated skill lines
     if (/[,|]/.test(cleaned) && cleaned.length < 200) {
       items.push(
         ...cleaned
@@ -144,7 +134,9 @@ function extractParagraphSection(text: string, headers: string[]): string {
 
 function extractExperience(text: string): Experience[] {
   const lower = text.toLowerCase();
-  const i = lower.search(/(?:^|\n)\s*(experience|work experience|employment|professional experience)\s*[:\n]/i);
+  const i = lower.search(
+    /(?:^|\n)\s*(experience|work experience|employment|professional experience)\s*[:\n]/i,
+  );
   if (i < 0) return [];
   const block = text.slice(i).split("\n").slice(1);
   const entries: Experience[] = [];
@@ -153,7 +145,6 @@ function extractExperience(text: string): Experience[] {
     if (/^(education|skills|projects|certifications)\b/i.test(line.trim())) break;
     const t = line.trim();
     if (!t) continue;
-    // Heuristic: Role at Company | dates
     const m =
       t.match(/^(.{3,60}?)\s+[—–\-|@]\s+(.{2,40}?)(?:\s+[—–\-|]\s+(.{2,30}))?$/i) ||
       t.match(/^(.{3,40}?)\s{2,}(.{2,40}?)\s{2,}(.{2,30})$/);
@@ -194,7 +185,12 @@ function extractProjects(text: string): Project[] {
     if (/^[-•*]/.test(t) || (t.length < 60 && !current)) {
       if (current) items.push(current);
       current = {
-        title: t.replace(/^[-•*]\s*/, "").split(/[—–\-:]/)[0].trim().slice(0, 80),
+        title: t
+          .replace(/^[-•*]\s*/,
+ "")
+          .split(/[—–\-:]/)[0]
+          .trim()
+          .slice(0, 80),
         description: "",
         url: t.match(/https?:\/\S+/i)?.[0] ?? "",
         tags: "",
@@ -212,17 +208,46 @@ function escapeRe(s: string) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-/** Read a File as text (txt/md/csv) or empty for binary PDFs (user can paste). */
+/**
+ * Extract text from a PDF entirely in the browser.
+ * PDF bytes are never sent to Vercel / our servers.
+ */
+export async function extractPdfText(file: File): Promise<string> {
+  const pdfjs = await import("pdfjs-dist");
+  // Worker from CDN — no server storage of the PDF
+  pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.mjs`;
+
+  const buf = await file.arrayBuffer();
+  const data = new Uint8Array(buf);
+  const doc = await pdfjs.getDocument({ data }).promise;
+  const parts: string[] = [];
+  const maxPages = Math.min(doc.numPages, 15);
+  for (let i = 1; i <= maxPages; i++) {
+    const page = await doc.getPage(i);
+    const content = await page.getTextContent();
+    const line = content.items
+      .map((it) => ("str" in it ? String((it as { str: string }).str) : ""))
+      .join(" ");
+    parts.push(line);
+    // Drop page ref ASAP
+    page.cleanup();
+  }
+  await doc.destroy();
+  // data / buf go out of scope — GC can reclaim; we never persist them
+  return parts.join("\n").trim();
+}
+
+/** Read resume file as text. PDF is parsed client-side only. */
 export async function readResumeFile(file: File): Promise<string> {
   const name = file.name.toLowerCase();
-  if (name.endsWith(".pdf")) {
-    // Browser has no built-in PDF text API without a library; ask user to paste.
-    return "";
+  const type = file.type || "";
+  if (name.endsWith(".pdf") || type === "application/pdf") {
+    return extractPdfText(file);
   }
   return await file.text();
 }
 
-/** Photo → compressed data URL for embedding in HTML. */
+/** Photo → compressed data URL for embedding in HTML (browser only). */
 export async function fileToDataUrl(file: File, maxEdge = 512): Promise<string> {
   const bitmap = await createImageBitmap(file);
   const scale = Math.min(1, maxEdge / Math.max(bitmap.width, bitmap.height));

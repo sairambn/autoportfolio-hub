@@ -1,5 +1,5 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useRef, useState } from "react";
 import {
   ArrowLeft,
   ArrowRight,
@@ -15,7 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { ensureGuestSession, loadSession, signInWithToken } from "@/lib/auth";
+import { ensureGuestSession, signInWithToken } from "@/lib/auth";
 import { publishPortfolio } from "@/lib/github-client";
 import {
   defaultContent,
@@ -34,7 +34,8 @@ export const Route = createFileRoute("/create")({
       { title: "Create portfolio — Folio" },
       {
         name: "description",
-        content: "Enter your details, add a photo and resume, get a live portfolio website.",
+        content:
+          "Upload photo and PDF resume in your browser. Nothing is stored on our servers.",
       },
     ],
   }),
@@ -44,22 +45,32 @@ export const Route = createFileRoute("/create")({
 type Step = 1 | 2 | 3 | 4;
 
 function CreateWizard() {
-  const nav = useNavigate();
   const [step, setStep] = useState<Step>(1);
   const [busy, setBusy] = useState(false);
   const [template, setTemplate] = useState<TemplateId>("editorial");
   const [content, setContent] = useState<Content>(() => defaultContent());
   const [resumeNote, setResumeNote] = useState("");
+  const [resumePaste, setResumePaste] = useState("");
   const [token, setToken] = useState("");
   const [repoName, setRepoName] = useState("my-portfolio");
   const [liveUrl, setLiveUrl] = useState<string | null>(null);
   const [portfolioId, setPortfolioId] = useState<string | null>(null);
+  const photoInputRef = useRef<HTMLInputElement>(null);
+  const resumeInputRef = useRef<HTMLInputElement>(null);
 
   function patch(p: Partial<Content>) {
     setContent((c) => ({ ...c, ...p }));
   }
   function patchContact(key: keyof Content["contact"], value: string) {
     setContent((c) => ({ ...c, contact: { ...c.contact, [key]: value } }));
+  }
+
+  /** Drop file inputs + paste buffer so PDF/bytes are not kept in the UI. */
+  function wipeUploadMemory() {
+    setResumePaste("");
+    setResumeNote("");
+    if (photoInputRef.current) photoInputRef.current.value = "";
+    if (resumeInputRef.current) resumeInputRef.current.value = "";
   }
 
   async function onPhoto(file: File | null) {
@@ -71,7 +82,8 @@ function CreateWizard() {
     try {
       const url = await fileToDataUrl(file);
       patch({ avatarUrl: url });
-      toast.success("Photo added");
+      if (photoInputRef.current) photoInputRef.current.value = "";
+      toast.success("Photo added (kept only in this browser until you deploy)");
     } catch {
       toast.error("Could not read photo");
     }
@@ -79,15 +91,26 @@ function CreateWizard() {
 
   async function onResumeFile(file: File | null) {
     if (!file) return;
-    const text = await readResumeFile(file);
-    if (!text) {
+    setBusy(true);
+    try {
+      const text = await readResumeFile(file);
+      // Clear file input immediately — PDF bytes leave the input
+      if (resumeInputRef.current) resumeInputRef.current.value = "";
+      if (!text.trim()) {
+        setResumeNote("Could not read text from that file. Try another PDF or paste text.");
+        toast.error("No text found in resume");
+        return;
+      }
+      applyResume(text);
       setResumeNote(
-        "PDF text can’t be read in the browser. Paste your resume text below, or upload a .txt / .md file.",
+        `Imported from ${file.name} in your browser only — file was not uploaded to our servers.`,
       );
-      toast.message("Paste resume text for PDF files");
-      return;
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not read resume");
+      setResumeNote("PDF read failed. Paste resume text instead.");
+    } finally {
+      setBusy(false);
     }
-    applyResume(text);
   }
 
   function applyResume(text: string) {
@@ -103,7 +126,8 @@ function CreateWizard() {
       githubUsername: parsed.githubUsername || c.githubUsername,
       contact: { ...c.contact, ...(parsed.contact ?? {}) },
     }));
-    setResumeNote("Resume applied — review details on the next step.");
+    // Do not keep full resume text in state after parse
+    setResumePaste("");
     toast.success("Resume imported");
   }
 
@@ -122,8 +146,10 @@ function CreateWizard() {
         title: content.name || "My Portfolio",
       });
       setPortfolioId(p.id);
+      // Drop resume paste / file handles from memory after build
+      wipeUploadMemory();
       setStep(4);
-      toast.success("Portfolio built");
+      toast.success("Portfolio built — upload data cleared from this form");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Build failed");
     }
@@ -144,7 +170,6 @@ function CreateWizard() {
     try {
       const user = await signInWithToken(clean);
       const login = user.login;
-      // Migrate guest portfolio into signed-in key if needed
       const guestList = JSON.parse(localStorage.getItem("folio_portfolios_guest") || "[]");
       const guestRow = Array.isArray(guestList)
         ? guestList.find((x: { id: string }) => x.id === portfolioId)
@@ -185,7 +210,10 @@ function CreateWizard() {
         content,
       });
       setLiveUrl(result.pagesUrl);
-      toast.success("Live website deployed");
+      // Token and upload leftovers leave form memory after successful deploy
+      setToken("");
+      wipeUploadMemory();
+      toast.success("Live website deployed — token cleared from this page");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Deploy failed");
     }
@@ -215,7 +243,8 @@ function CreateWizard() {
           <section className="space-y-6">
             <h1 className="text-4xl font-black">Your details</h1>
             <p className="text-muted-foreground">
-              Add a photo and resume — we’ll fill most fields for you.
+              Photo and PDF are read <strong>only in your browser</strong>. Nothing is stored on
+              Vercel — after you build, upload data is cleared from this form.
             </p>
 
             <div className="grid gap-4 sm:grid-cols-2">
@@ -224,6 +253,7 @@ function CreateWizard() {
                 <span className="font-semibold">Upload photo</span>
                 <span className="text-xs text-muted-foreground">JPG or PNG</span>
                 <input
+                  ref={photoInputRef}
                   type="file"
                   accept="image/*"
                   className="hidden"
@@ -241,13 +271,15 @@ function CreateWizard() {
               <label className="block-card flex cursor-pointer flex-col items-center gap-2 p-6 text-center hover:bg-muted/40">
                 <FileText className="size-8 text-primary" />
                 <span className="font-semibold">Upload resume</span>
-                <span className="text-xs text-muted-foreground">.txt or .md (paste PDF text below)</span>
+                <span className="text-xs text-muted-foreground">PDF, .txt, or .md</span>
                 <input
+                  ref={resumeInputRef}
                   type="file"
-                  accept=".txt,.md,.csv,text/plain"
+                  accept=".pdf,.txt,.md,.csv,application/pdf,text/plain"
                   className="hidden"
                   onChange={(e) => onResumeFile(e.target.files?.[0] ?? null)}
                 />
+                {busy ? <Loader2 className="mt-2 size-5 animate-spin" /> : null}
               </label>
             </div>
 
@@ -255,16 +287,20 @@ function CreateWizard() {
               <Label className="mb-1 block">Or paste resume text</Label>
               <Textarea
                 rows={6}
+                value={resumePaste}
                 placeholder="Paste your resume / CV text here…"
-                onBlur={(e) => {
-                  if (e.target.value.trim().length > 40) applyResume(e.target.value);
+                onChange={(e) => setResumePaste(e.target.value)}
+                onBlur={() => {
+                  if (resumePaste.trim().length > 40) applyResume(resumePaste);
                 }}
               />
-              {resumeNote ? <p className="mt-2 text-sm text-muted-foreground">{resumeNote}</p> : null}
+              {resumeNote ? (
+                <p className="mt-2 text-sm text-muted-foreground">{resumeNote}</p>
+              ) : null}
             </div>
 
             <div className="flex justify-end">
-              <Button variant="block" onClick={() => setStep(2)}>
+              <Button variant="block" onClick={() => setStep(2)} disabled={busy}>
                 Next <ArrowRight />
               </Button>
             </div>
@@ -373,8 +409,8 @@ function CreateWizard() {
               <h1 className="text-4xl font-black">Portfolio ready</h1>
             </div>
             <p className="text-muted-foreground">
-              Your site is built from your details, photo, and resume. Deploy it to get a public
-              link anyone can open.
+              PDF/photo were processed in your browser only. Deploy to GitHub Pages for a free
+              public URL — we do not host your files on Vercel.
             </p>
 
             {liveUrl ? (
@@ -389,14 +425,14 @@ function CreateWizard() {
                   {liveUrl}
                 </a>
                 <p className="text-xs text-muted-foreground">
-                  GitHub Pages can take 1–2 minutes the first time. Refresh if you see 404.
+                  Hosted on GitHub Pages (free). First load can take 1–2 minutes.
                 </p>
               </div>
             ) : (
               <div className="block-card space-y-4 p-6">
                 <p className="font-semibold">Deploy live (free GitHub Pages)</p>
                 <p className="text-sm text-muted-foreground">
-                  Create a token at{" "}
+                  Token at{" "}
                   <a
                     className="underline"
                     href="https://github.com/settings/tokens/new?scopes=repo&description=Folio%20portfolio"
@@ -405,7 +441,7 @@ function CreateWizard() {
                   >
                     github.com/settings/tokens
                   </a>{" "}
-                  with the <strong>repo</strong> scope, paste it once, and we publish your site.
+                  (<strong>repo</strong> scope). Cleared from this page after deploy.
                 </p>
                 <div>
                   <Label className="mb-1 block">GitHub token</Label>
