@@ -4,6 +4,10 @@ import {
   ArrowLeft,
   ArrowRight,
   Check,
+  ChevronDown,
+  ChevronUp,
+  Download,
+  Eye,
   FileText,
   Globe,
   ImagePlus,
@@ -21,6 +25,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ensureGuestSession, signInWithToken } from "@/lib/auth";
+import { downloadPortfolioHtml } from "@/lib/download";
 import { publishPortfolio } from "@/lib/github-client";
 import {
   defaultContent,
@@ -93,6 +98,8 @@ function CreateWizard() {
   const [repoName, setRepoName] = useState("my-portfolio");
   const [liveUrl, setLiveUrl] = useState<string | null>(null);
   const [portfolioId, setPortfolioId] = useState<string | null>(null);
+  const [showMobilePreview, setShowMobilePreview] = useState(false);
+  const [downloading, setDownloading] = useState(false);
   const photoInputRef = useRef<HTMLInputElement>(null);
   const resumeInputRef = useRef<HTMLInputElement>(null);
 
@@ -207,6 +214,27 @@ function CreateWizard() {
       toast.error(e instanceof Error ? e.message : "Build failed");
     }
     setBusy(false);
+  }
+
+  async function doDownload() {
+    if (!portfolioId) {
+      toast.error("Build the portfolio first");
+      return;
+    }
+    setDownloading(true);
+    try {
+      await downloadPortfolioHtml({
+        title: content.name || "Portfolio",
+        content,
+        theme: TEMPLATES[template].theme,
+        sections: defaultSections(),
+        filename: content.name || "portfolio",
+      });
+      toast.success("Downloaded! Open index.html in any browser.");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Download failed");
+    }
+    setDownloading(false);
   }
 
   async function deployLive() {
@@ -368,11 +396,11 @@ function CreateWizard() {
 
         {step === 2 && (
           <section className="grid gap-8 lg:grid-cols-[1fr_1fr]">
-            <div className="space-y-5 overflow-y-auto max-h-[80vh] pr-2">
+            <div className="space-y-5 lg:overflow-y-auto lg:max-h-[80vh] lg:pr-2">
               <div>
                 <h1 className="text-4xl font-black">Review details</h1>
                 <p className="mt-2 text-muted-foreground">
-                  Edit your details on the left — the preview updates in real time.
+                  Edit your details — the preview updates in real time.
                 </p>
               </div>
 
@@ -482,6 +510,7 @@ function CreateWizard() {
               </div>
             </div>
 
+            {/* Desktop preview */}
             <div className="overflow-hidden rounded-xl border-2 border-ink bg-card shadow-sm hidden lg:block">
               <div className="border-b-2 border-ink bg-muted/50 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 Live preview
@@ -494,6 +523,30 @@ function CreateWizard() {
                   repos={null}
                 />
               </div>
+            </div>
+
+            {/* Mobile preview toggle */}
+            <div className="lg:hidden">
+              <button
+                type="button"
+                onClick={() => setShowMobilePreview((v) => !v)}
+                className="flex w-full items-center justify-between rounded-xl border-2 border-ink/20 bg-muted/30 px-4 py-3 text-sm font-semibold"
+              >
+                <span className="flex items-center gap-2"><Eye className="size-4" /> Preview portfolio</span>
+                {showMobilePreview ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
+              </button>
+              {showMobilePreview && (
+                <div className="mt-3 overflow-hidden rounded-xl border-2 border-ink bg-card">
+                  <div className="max-h-[60vh] overflow-y-auto">
+                    <PortfolioView
+                      content={content}
+                      theme={previewTheme}
+                      sections={previewSections}
+                      repos={null}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           </section>
         )}
@@ -585,6 +638,27 @@ function CreateWizard() {
               </div>
             </div>
 
+            {/* ── Download (no login required) ── */}
+            <div className="block-card space-y-3 p-6 bg-primary/5 border-primary/30">
+              <div className="flex items-center gap-2 font-bold text-lg">
+                <Download className="size-5 text-primary" /> Download your portfolio
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Get a single <code>index.html</code> file — works on any device, no internet required.
+                You can open it locally, host it on any server, or share it directly.
+              </p>
+              <Button
+                variant="block"
+                className="w-full"
+                onClick={doDownload}
+                disabled={downloading || !portfolioId}
+                id="btn-download-html"
+              >
+                {downloading ? <Loader2 className="animate-spin" /> : <Download />}
+                Download as HTML — free, no login
+              </Button>
+            </div>
+
             {liveUrl ? (
               <div className="block-card space-y-4 bg-accent/20 p-6">
                 <div className="flex items-center gap-2 font-bold text-lg">
@@ -608,7 +682,7 @@ function CreateWizard() {
                   <Upload className="size-5" /> Deploy live — free GitHub Pages
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  Create a token at{" "}
+                  Optional: deploy to a free public URL. Create a token at{" "}
                   <a
                     className="underline text-primary"
                     href="https://github.com/settings/tokens/new?scopes=repo&description=Folio"
@@ -617,7 +691,7 @@ function CreateWizard() {
                   >
                     github.com/settings/tokens
                   </a>{" "}
-                  with the <strong>repo</strong> scope. It stays in your browser only.
+                  with the <strong>repo</strong> scope.
                 </p>
                 <div>
                   <Label className="mb-1 block">GitHub token</Label>
@@ -642,7 +716,7 @@ function CreateWizard() {
                 </div>
                 <Button variant="block" className="w-full" onClick={deployLive} disabled={busy || !token.trim()}>
                   {busy ? <Loader2 className="animate-spin" /> : <Upload />}
-                  Deploy to GitHub Pages
+                  Deploy to GitHub Pages (optional)
                 </Button>
               </div>
             )}

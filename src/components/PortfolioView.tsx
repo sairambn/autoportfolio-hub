@@ -119,11 +119,25 @@ export const PORTFOLIO_CSS = `
 
 /* ── Responsive ── */
 @media(max-width:640px){
+  .pf-wrap{padding:0 16px 60px}
+  .pf-nav{flex-direction:column;align-items:flex-start;gap:10px;padding:20px 0 12px}
+  .pf-nav-links{display:flex;flex-wrap:wrap;gap:12px}
+  .pf-hero{padding:32px 0 28px}
+  .pf-hero-top{flex-direction:column;gap:14px}
+  .pf-avatar{width:80px;height:80px}
+  .pf-name{font-size:clamp(32px,10vw,52px)}
   .pf-stats{grid-template-columns:1fr 1fr}
-  .pf-exp{grid-template-columns:1fr}
-  .pf-item{grid-template-columns:36px 1fr}
-  .pf-hero-top{flex-direction:column;gap:16px}
+  .pf-exp{grid-template-columns:1fr;gap:4px 0}
+  .pf-exp-period{padding-top:0;margin-bottom:2px}
+  .pf-item{grid-template-columns:32px 1fr;gap:10px}
   .pf-foot{flex-direction:column;text-align:center}
+  .pf-sec{padding:40px 0 8px}
+  .pf-links{gap:8px}
+  .pf-btn{padding:8px 14px;font-size:12px}
+}
+@media(max-width:380px){
+  .pf-stats{grid-template-columns:1fr}
+  .pf-name{font-size:clamp(28px,12vw,44px)}
 }
 @media(prefers-reduced-motion:reduce){.pf-marquee-inner{animation:none}}
 `;
