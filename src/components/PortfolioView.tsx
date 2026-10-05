@@ -1,5 +1,6 @@
 import type { CSSProperties } from "react";
 import { FONTS, type Content, type Repo, type Section, type Theme } from "@/lib/portfolio";
+import { LiquidEffectAnimation } from "@/components/ui/liquid-effect-animation";
 
 export const PORTFOLIO_CSS = `
 .pf{background:var(--pf-bg);color:var(--pf-fg);font-family:var(--pf-body);min-height:100%;line-height:1.55;-webkit-font-smoothing:antialiased}
@@ -53,6 +54,9 @@ export const PORTFOLIO_CSS = `
 .pf-t-neon .pf-stat,.pf-t-neon .pf-chip{border-radius:4px}
 .pf-t-mono .pf-name::before{content:"> ";color:var(--pf-accent)}
 .pf-t-mono .pf-stat,.pf-t-mono .pf-chip{border:1px solid color-mix(in oklab,var(--pf-fg) 22%,transparent);border-radius:4px}
+.pf-liquid{position:relative;isolation:isolate}
+.pf-liquid .pf-wrap{position:relative;z-index:10}
+.pf-liquid .pf-stat,.pf-liquid .pf-chip,.pf-liquid .pf-btn{backdrop-filter:blur(8px);background:color-mix(in oklab,var(--pf-surface) 85%,transparent)}
 @media(max-width:640px){
   .pf-stats{grid-template-columns:1fr}
   .pf-exp{grid-template-columns:1fr}
@@ -83,11 +87,14 @@ export function PortfolioView({
   theme,
   sections,
   repos,
+  liquidBackground = false,
 }: {
   content: Content;
   theme: Theme;
   sections: Section[];
   repos?: Repo[] | null;
+  /** When true, renders the liquid Three.js background behind the portfolio */
+  liquidBackground?: boolean;
 }) {
   const links = Object.entries(c.contact).filter(([, v]) => v);
   const href = (k: string, v: string) =>
@@ -99,7 +106,11 @@ export function PortfolioView({
   const tpl = theme.template || "signal";
 
   return (
-    <div className={`pf pf-t-${tpl}`} style={themeVars(theme)}>
+    <div
+      className={`pf pf-t-${tpl}${liquidBackground ? " pf-liquid" : ""}`}
+      style={themeVars(theme)}
+    >
+      {liquidBackground && <LiquidEffectAnimation />}
       <style dangerouslySetInnerHTML={{ __html: PORTFOLIO_CSS }} />
       <div className="pf-wrap">
         <nav className="pf-nav">
