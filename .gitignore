@@ -16,6 +16,9 @@ dist-ssr
 .nitro
 *.local
 
+# Vercel build output — never commit (causes deploy errors)
+.vercel
+
 # Environment variables — never commit secrets
 .env
 .env.local
