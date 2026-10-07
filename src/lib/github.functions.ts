@@ -238,12 +238,19 @@ export const publishToGithub = createServerFn({ method: "POST" })
 
     const stamp = new Date().toISOString();
 
-    await commitFiles(data.token, data.login, repoName, defaultBranch, `Publish portfolio ${stamp}`, [
-      { path: ".nojekyll", content: "" },
-      { path: "index.html", content: html },
-      { path: "folio.json", content: folioJson },
-      { path: "README.md", content: readme },
-    ]);
+    await commitFiles(
+      data.token,
+      data.login,
+      repoName,
+      defaultBranch,
+      `Publish portfolio ${stamp}`,
+      [
+        { path: ".nojekyll", content: "" },
+        { path: "index.html", content: html },
+        { path: "folio.json", content: folioJson },
+        { path: "README.md", content: readme },
+      ],
+    );
 
     await enablePages(data.token, data.login, repoName, defaultBranch);
 

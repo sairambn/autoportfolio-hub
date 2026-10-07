@@ -8,8 +8,12 @@ function requireApiKey(): string {
 }
 
 export async function authorizeAppUserOAuth(p: {
-  connectorId: string; appUserId: string; clientAPIKey: string; returnUrl: string;
-  connectionAPIKey?: string; credentialsConfiguration?: Record<string, unknown>;
+  connectorId: string;
+  appUserId: string;
+  clientAPIKey: string;
+  returnUrl: string;
+  connectionAPIKey?: string;
+  credentialsConfiguration?: Record<string, unknown>;
 }) {
   const headers: Record<string, string> = {
     Authorization: `Bearer ${requireApiKey()}`,
@@ -18,8 +22,14 @@ export async function authorizeAppUserOAuth(p: {
   };
   if (p.connectionAPIKey) headers["X-Connection-Api-Key"] = p.connectionAPIKey;
   const res = await fetch(`${GATEWAY_BASE_URL}/api/v1/app-users/oauth2/authorize`, {
-    method: "POST", headers,
-    body: JSON.stringify({ connector_id: p.connectorId, app_user_id: p.appUserId, return_url: p.returnUrl, credentials_configuration: p.credentialsConfiguration }),
+    method: "POST",
+    headers,
+    body: JSON.stringify({
+      connector_id: p.connectorId,
+      app_user_id: p.appUserId,
+      return_url: p.returnUrl,
+      credentials_configuration: p.credentialsConfiguration,
+    }),
   });
   const text = await res.text();
   if (!res.ok) throw new Error(`OAuth start failed (${res.status}): ${text}`);
@@ -28,25 +38,39 @@ export async function authorizeAppUserOAuth(p: {
   return { authorizationUrl: body.authorization_url };
 }
 
-export async function callAsAppUser(p: { connectionAPIKey: string; connectorId: string; path: string; init?: RequestInit; requiredScopes?: string[] }) {
+export async function callAsAppUser(p: {
+  connectionAPIKey: string;
+  connectorId: string;
+  path: string;
+  init?: RequestInit;
+  requiredScopes?: string[];
+}) {
   const headers = new Headers(p.init?.headers);
   headers.set("Authorization", `Bearer ${requireApiKey()}`);
   headers.set("X-Connection-Api-Key", p.connectionAPIKey);
-  if (p.requiredScopes?.length) headers.set("X-Lovable-Required-Scopes", p.requiredScopes.join(" "));
+  if (p.requiredScopes?.length)
+    headers.set("X-Lovable-Required-Scopes", p.requiredScopes.join(" "));
   const path = p.path.startsWith("/") ? p.path : `/${p.path}`;
   return fetch(`${GATEWAY_BASE_URL}/${p.connectorId}${path}`, { ...p.init, headers });
 }
 
 export async function appUserReconnectRequired(res: Response) {
   if (res.status !== 401) return false;
-  const body = (await res.clone().json().catch(() => null)) as { type?: unknown } | null;
+  const body = (await res
+    .clone()
+    .json()
+    .catch(() => null)) as { type?: unknown } | null;
   return typeof body?.type === "string" && body.type.startsWith("credential_");
 }
 
 export async function disconnectAppUser(connectionAPIKey: string, connectorId: string) {
   const res = await fetch(`${GATEWAY_BASE_URL}/api/v1/app-users/connection`, {
     method: "DELETE",
-    headers: { Authorization: `Bearer ${requireApiKey()}`, "X-Connection-Api-Key": connectionAPIKey, "Content-Type": "application/json" },
+    headers: {
+      Authorization: `Bearer ${requireApiKey()}`,
+      "X-Connection-Api-Key": connectionAPIKey,
+      "Content-Type": "application/json",
+    },
     body: JSON.stringify({ connector_id: connectorId }),
   });
   if (!res.ok) throw new Error(`Disconnect failed (${res.status}): ${await res.text()}`);

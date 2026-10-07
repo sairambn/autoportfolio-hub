@@ -1,0 +1,22 @@
+import { o as e } from "./button-CwadJfXq.js";
+var t = e(`file-text`, [
+    [
+      `path`,
+      {
+        d: `M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z`,
+        key: `1oefj6`,
+      },
+    ],
+    [`path`, { d: `M14 2v5a1 1 0 0 0 1 1h5`, key: `wfsgrz` }],
+    [`path`, { d: `M10 9H8`, key: `b1mrlr` }],
+    [`path`, { d: `M16 13H8`, key: `t4e002` }],
+    [`path`, { d: `M16 17H8`, key: `z1uh3a` }],
+  ]),
+  n = e(`image-plus`, [
+    [`path`, { d: `M16 5h6`, key: `1vod17` }],
+    [`path`, { d: `M19 2v6`, key: `4bpg5p` }],
+    [`path`, { d: `M21 11.5V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7.5`, key: `1ue2ih` }],
+    [`path`, { d: `m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21`, key: `1xmnt7` }],
+    [`circle`, { cx: `9`, cy: `9`, r: `2`, key: `af1f0g` }],
+  ]);
+export { t as n, n as t };

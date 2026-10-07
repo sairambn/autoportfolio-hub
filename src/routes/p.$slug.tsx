@@ -28,7 +28,10 @@ function PublicPortfolio() {
     return getBySlug(session.user.login, slug);
   }, [slug]);
 
-  if (!row) {
+  const normalized = useMemo(() => (row ? normalize(row) : null), [row]);
+  const repos = useGithubRepos(normalized?.content.githubUsername);
+
+  if (!row || !normalized) {
     return (
       <div className="grid min-h-screen place-items-center px-4">
         <div className="max-w-md text-center">
@@ -45,8 +48,7 @@ function PublicPortfolio() {
     );
   }
 
-  const { content, theme, sections } = normalize(row);
-  const repos = useGithubRepos(content.githubUsername);
+  const { content, theme, sections } = normalized;
   return (
     <PortfolioView
       content={content}

@@ -250,7 +250,11 @@ export function PortfolioView({
                           <div>
                             <h3>{p.title}</h3>
                             <p>{p.description}</p>
-                            {p.tags ? <div className="pf-meta">{p.tags}</div> : null}
+                            {p.tags ? (
+                              <div className="pf-meta">
+                                {Array.isArray(p.tags) ? p.tags.join(" · ") : p.tags}
+                              </div>
+                            ) : null}
                           </div>
                         </a>
                       ))}
@@ -309,8 +313,45 @@ export function PortfolioView({
                             {e.company ? ` · ${e.company}` : ""}
                           </h3>
                           {e.description ? (
-                            <p style={{ margin: "6px 0 0", color: "var(--pf-muted)", fontSize: 14.5 }}>
+                            <p
+                              style={{
+                                margin: "6px 0 0",
+                                color: "var(--pf-muted)",
+                                fontSize: 14.5,
+                              }}
+                            >
                               {e.description}
+                            </p>
+                          ) : null}
+                        </div>
+                      </div>
+                    ))}
+                  </section>
+                );
+              case "education":
+                if (!c.education?.length) return null;
+                sectionNo += 1;
+                return (
+                  <section key={s.id} className="pf-sec">
+                    <p className="pf-num">Nº{padNum(sectionNo)} / Education</p>
+                    <h2 className="pf-h">Education & Academic Background</h2>
+                    {c.education.map((edu, i) => (
+                      <div key={i} className="pf-exp">
+                        <div className="p">{edu.period}</div>
+                        <div>
+                          <h3>
+                            {edu.degree}
+                            {edu.institution ? ` · ${edu.institution}` : ""}
+                          </h3>
+                          {edu.description ? (
+                            <p
+                              style={{
+                                margin: "6px 0 0",
+                                color: "var(--pf-muted)",
+                                fontSize: 14.5,
+                              }}
+                            >
+                              {edu.description}
                             </p>
                           ) : null}
                         </div>
@@ -327,7 +368,13 @@ export function PortfolioView({
                     <h2 className="pf-h">Get in touch</h2>
                     <div className="pf-links">
                       {links.map(([k, v]) => (
-                        <a key={k} className="pf-btn" href={href(k, v)} target="_blank" rel="noreferrer">
+                        <a
+                          key={k}
+                          className="pf-btn"
+                          href={href(k, v)}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
                           {k}
                         </a>
                       ))}

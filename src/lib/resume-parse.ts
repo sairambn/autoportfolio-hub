@@ -5,7 +5,7 @@ const TECH_WORDS = [
   "TypeScript",
   "Python",
   "Java",
-  "C\+\+",
+  "C\\+\\+",
   "C#",
   "Go",
   "Rust",
@@ -62,31 +62,34 @@ const TECH_WORDS = [
 
 /** Resume text → portfolio fields (browser-only, no server). */
 export function parseResumeText(raw: string): Partial<Content> {
-  const text = raw.replace(/\r/g, "\n").replace(/[ \t]+/g, " ").trim();
+  const text = raw
+    .replace(/\r/g, "\n")
+    .replace(/[ \t]+/g, " ")
+    .trim();
   if (!text) return {};
 
   // PDF extractors often drop newlines — re-split on common cues
   const normalized = text
     .replace(/([a-z])([A-Z])/g, "$1\n$2")
-    .replace(/\s*(EXPERIENCE|EDUCATION|SKILLS|PROJECTS|SUMMARY|PROFILE|OBJECTIVE|WORK EXPERIENCE|TECHNICAL SKILLS)\s*/gi, "\n$1\n");
+    .replace(
+      /\s*(EXPERIENCE|EDUCATION|SKILLS|PROJECTS|SUMMARY|PROFILE|OBJECTIVE|WORK EXPERIENCE|TECHNICAL SKILLS)\s*/gi,
+      "\n$1\n",
+    );
 
   const lines = normalized
     .split("\n")
     .map((l) => l.trim())
     .filter((l) => l.length > 1);
 
-  const email =
-    text.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)?.[0] ?? "";
+  const email = text.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)?.[0] ?? "";
   const linkedin =
-    text.match(/(?:https?:\/\/)?(?:www\.)?linkedin\.com\/in\/[A-Za-z0-9_-]+\/?/i)?.[0] ??
-    "";
+    text.match(/(?:https?:\/\/)?(?:www\.)?linkedin\.com\/in\/[A-Za-z0-9_-]+\/?/i)?.[0] ?? "";
   const githubUrl =
     text.match(/(?:https?:\/\/)?(?:www\.)?github\.com\/[A-Za-z0-9_-]+\/?/i)?.[0] ?? "";
-  const website =
-    text.match(/https?:\/\/(?!.*(linkedin|github)\.)[^\s)]+/i)?.[0] ?? "";
+  const website = text.match(/https?:\/\/(?!.*(linkedin|github)\.)[^\s)]+/i)?.[0] ?? "";
 
-  let name = guessName(lines, email);
-  let headline = guessHeadline(lines, name);
+  const name = guessName(lines, email);
+  const headline = guessHeadline(lines, name);
   const skills = [
     ...extractListSection(normalized, [
       "skills",
@@ -97,10 +100,7 @@ export function parseResumeText(raw: string): Partial<Content> {
     ]),
     ...extractTechKeywords(text),
   ];
-  const uniqueSkills = [...new Set(skills.map((s) => s.trim()).filter(Boolean))].slice(
-    0,
-    16,
-  );
+  const uniqueSkills = [...new Set(skills.map((s) => s.trim()).filter(Boolean))].slice(0, 16);
 
   const bio =
     extractParagraphSection(normalized, [
@@ -120,7 +120,7 @@ export function parseResumeText(raw: string): Partial<Content> {
   const experience = extractExperience(normalized);
   const projects = extractProjects(normalized);
 
-  let githubUsername =
+  const githubUsername =
     githubUrl.match(/github\.com\/([^/\s?#]+)/i)?.[1]?.replace(/\/$/, "") ?? "";
 
   // Prefer clean linkedin/github URLs
@@ -155,10 +155,9 @@ export function parseResumeText(raw: string): Partial<Content> {
 
 function guessName(lines: string[], email: string): string {
   for (const line of lines.slice(0, 8)) {
-    if (/@|https?:|linkedin|github|curriculum|resume|cv|phone|mobile|address/i.test(line))
-      continue;
+    if (/@|https?:|linkedin|github|curriculum|resume|cv|phone|mobile|address/i.test(line)) continue;
     // All-caps name lines common in PDFs
-    if (/^[A-Z][A-Za-z.'\-]+(?:\s+[A-Z][A-Za-z.'\-]+){0,3}$/.test(line) && line.length < 50) {
+    if (/^[A-Z][A-Za-z.'-]+(?:\s+[A-Z][A-Za-z.'-]+){0,3}$/.test(line) && line.length < 50) {
       return toTitleCase(line);
     }
     if (line.length > 2 && line.length < 45 && !/^\d+$/.test(line) && !/,/.test(line)) {
@@ -168,7 +167,9 @@ function guessName(lines: string[], email: string): string {
   // Fallback from email local part: databytes.sairam → Sairam / Databytes Sairam
   if (email) {
     const local = email.split("@")[0] || "";
-    const parts = local.split(/[._+-]/).filter((p) => p.length > 1 && !/^(data|bytes|mail|info|dev)$/i.test(p));
+    const parts = local
+      .split(/[._+-]/)
+      .filter((p) => p.length > 1 && !/^(data|bytes|mail|info|dev)$/i.test(p));
     if (parts.length) return parts.map(toTitleCase).join(" ");
   }
   return "";
@@ -214,14 +215,16 @@ function extractListSection(text: string, headers: string[]): string[] {
   const lower = text.toLowerCase();
   let start = -1;
   for (const h of headers) {
-    const i = lower.search(new RegExp(`(?:^|\n)\s*${escapeRe(h)}\s*[:\n]`, "i"));
+    const i = lower.search(new RegExp(`(?:^|\n)\\s*${escapeRe(h)}\\s*[:\n]`, "i"));
     if (i >= 0 && (start < 0 || i < start)) start = i;
   }
   if (start < 0) return [];
   const after = text.slice(start).split("\n").slice(1);
   const items: string[] = [];
   for (const line of after) {
-    if (/^(experience|education|projects|work|employment|certifications|summary)\b/i.test(line.trim())) {
+    if (
+      /^(experience|education|projects|work|employment|certifications|summary)\b/i.test(line.trim())
+    ) {
       break;
     }
     const cleaned = line
@@ -251,7 +254,7 @@ function extractParagraphSection(text: string, headers: string[]): string {
   const lower = text.toLowerCase();
   let start = -1;
   for (const h of headers) {
-    const i = lower.search(new RegExp(`(?:^|\n)\s*${escapeRe(h)}\s*[:\n]`, "i"));
+    const i = lower.search(new RegExp(`(?:^|\n)\\s*${escapeRe(h)}\\s*[:\n]`, "i"));
     if (i >= 0 && (start < 0 || i < start)) start = i;
   }
   if (start < 0) return "";
@@ -295,9 +298,7 @@ function extractExperience(text: string): Experience[] {
       };
     } else if (current) {
       const desc = t.replace(/^[-•*]\s*/, "");
-      current.description = current.description
-        ? `${current.description} ${desc}`
-        : desc;
+      current.description = current.description ? `${current.description} ${desc}` : desc;
     }
     if (entries.length >= 6) break;
   }

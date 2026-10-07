@@ -18,10 +18,21 @@ function decrypt(stored: string) {
   return Buffer.concat([d.update(buf.subarray(28)), d.final()]).toString("utf8");
 }
 
-export async function saveConnection(userId: string, connectorId: string, apiKey: string, githubLogin: string | null) {
+export async function saveConnection(
+  userId: string,
+  connectorId: string,
+  apiKey: string,
+  githubLogin: string | null,
+) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { error } = await supabaseAdmin.from("app_user_connections").upsert(
-    { user_id: userId, connector_id: connectorId, connection_key_ciphertext: encrypt(apiKey), github_login: githubLogin, updated_at: new Date().toISOString() },
+    {
+      user_id: userId,
+      connector_id: connectorId,
+      connection_key_ciphertext: encrypt(apiKey),
+      github_login: githubLogin,
+      updated_at: new Date().toISOString(),
+    },
     { onConflict: "user_id,connector_id" },
   );
   if (error) throw error;
@@ -29,13 +40,21 @@ export async function saveConnection(userId: string, connectorId: string, apiKey
 
 export async function getConnection(userId: string, connectorId: string) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const { data, error } = await supabaseAdmin.from("app_user_connections")
-    .select("connection_key_ciphertext, github_login").eq("user_id", userId).eq("connector_id", connectorId).maybeSingle();
+  const { data, error } = await supabaseAdmin
+    .from("app_user_connections")
+    .select("connection_key_ciphertext, github_login")
+    .eq("user_id", userId)
+    .eq("connector_id", connectorId)
+    .maybeSingle();
   if (error) throw error;
   return data ? { key: decrypt(data.connection_key_ciphertext), login: data.github_login } : null;
 }
 
 export async function deleteConnection(userId: string, connectorId: string) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  await supabaseAdmin.from("app_user_connections").delete().eq("user_id", userId).eq("connector_id", connectorId);
+  await supabaseAdmin
+    .from("app_user_connections")
+    .delete()
+    .eq("user_id", userId)
+    .eq("connector_id", connectorId);
 }

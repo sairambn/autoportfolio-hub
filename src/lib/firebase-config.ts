@@ -1,0 +1,14 @@
+export const firebaseConfig = {
+  projectId: "gen-lang-client-0792314276",
+  appId: "1:705370910911:web:3b0003e9473fc191a8560a",
+  apiKey: "AIzaSyAd5wOWjNL9bdH7OLlOAA0BbaBJP7TBcuA",
+  authDomain: "gen-lang-client-0792314276.firebaseapp.com",
+  firestoreDatabaseId: "ai-studio-autoportfoliohub-c24acf1a-a565-4bb6-9ee9-4f14ad7c00ea",
+  storageBucket: "gen-lang-client-0792314276.firebasestorage.app",
+  messagingSenderId: "705370910911",
+  measurementId: "",
+  oAuthClientId: "705370910911-4877thnqdu0b3ngv976lunqohvlh1c0n.apps.googleusercontent.com",
+  recaptchaSiteKey: "",
+};
+
+export default firebaseConfig;

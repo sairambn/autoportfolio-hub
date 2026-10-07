@@ -1,11 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import {
-  fetchGithubUser,
-  fetchGoogleUser,
-  saveSession,
-  type AuthProvider,
-} from "@/lib/auth";
+import { fetchGithubUser, fetchGoogleUser, saveSession, type AuthProvider } from "@/lib/auth";
 
 export const Route = createFileRoute("/auth/callback")({
   head: () => ({

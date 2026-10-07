@@ -1,0 +1,110 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User profile information in Firebase Firestore",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "User ID matching Firebase Auth UID"
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "Verified user email address"
+        },
+        "name": {
+          "type": "string",
+          "maxLength": 100,
+          "description": "User display name"
+        },
+        "avatarUrl": {
+          "type": "string",
+          "maxLength": 2048,
+          "description": "User profile photo URL"
+        },
+        "provider": {
+          "type": "string",
+          "maxLength": 50,
+          "description": "Authentication provider (e.g. google.com, github.com)"
+        },
+        "bio": {
+          "type": "string",
+          "maxLength": 500,
+          "description": "User biography or short headline"
+        },
+        "githubUsername": {
+          "type": "string",
+          "maxLength": 100,
+          "description": "Linked GitHub username"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when account was first created"
+        },
+        "lastLoginAt": {
+          "type": "string",
+          "description": "Timestamp of most recent login"
+        }
+      },
+      "required": ["id", "email", "name"]
+    },
+    "Portfolio": {
+      "title": "Portfolio",
+      "description": "User portfolio document",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Portfolio unique ID"
+        },
+        "userId": {
+          "type": "string",
+          "description": "Author UID"
+        },
+        "slug": {
+          "type": "string",
+          "maxLength": 100,
+          "description": "Public URL slug"
+        },
+        "title": {
+          "type": "string",
+          "maxLength": 100,
+          "description": "Portfolio display title"
+        },
+        "published": {
+          "type": "boolean",
+          "description": "Whether portfolio is published"
+        },
+        "github_repo": {
+          "type": "string",
+          "description": "Target GitHub repo name"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Creation timestamp"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Update timestamp"
+        }
+      },
+      "required": ["id", "userId", "title"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": {
+        "$ref": "#/entities/UserProfile"
+      },
+      "description": "User profile document accessible by the authenticated user"
+    },
+    "/users/{userId}/portfolios/{portfolioId}": {
+      "schema": {
+        "$ref": "#/entities/Portfolio"
+      },
+      "description": "Portfolios owned by this user"
+    }
+  }
+}

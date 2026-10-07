@@ -14,15 +14,15 @@ Build a portfolio in the browser, save drafts locally, publish a static site to 
 
 ## Routes
 
-| Path | Purpose |
-|---|---|
-| `/` | Landing |
-| `/auth` | Sign in with GitHub |
-| `/auth/callback` | OAuth return |
+| Path               | Purpose                      |
+| ------------------ | ---------------------------- |
+| `/`                | Landing                      |
+| `/auth`            | Sign in with GitHub          |
+| `/auth/callback`   | OAuth return                 |
 | `/api/auth/github` | OAuth start + token exchange |
-| `/dashboard` | Local portfolios |
-| `/editor/$id` | Editor + publish |
-| `/p/$slug` | Same-browser preview |
+| `/dashboard`       | Local portfolios             |
+| `/editor/$id`      | Editor + publish             |
+| `/p/$slug`         | Same-browser preview         |
 
 ## Stack
 

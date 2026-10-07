@@ -152,22 +152,102 @@ export async function signInWithToken(token: string) {
   const clean = token.trim();
   if (!clean) throw new Error("Paste a GitHub token");
   const user = await fetchGithubUser(clean);
-  saveSession({
+  const session: AuthSession = {
     token: clean,
     user,
     provider: "github",
     expiresAt: Date.now() + 1000 * 60 * 60 * 24 * 90,
-  });
+  };
+  saveSession(session);
   return user;
 }
 
-/** Start GitHub OAuth (needs GITHUB_CLIENT_ID / SECRET on the server). */
+/** Fetch OAuth authorization URL from server. */
+export async function getOAuthUrl(provider: "google" | "github"): Promise<string> {
+  const res = await fetch(`/api/auth/url?provider=${provider}`);
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.message || data.error || `Could not initialize ${provider} login`);
+  }
+  return data.url;
+}
+
+/** Open provider authorization URL in a popup with postMessage handshake. */
+export function openOAuthPopup(url: string, title = "Sign in"): Promise<AuthSession> {
+  return new Promise((resolve, reject) => {
+    const width = 600;
+    const height = 700;
+    const left = window.screenX + (window.outerWidth - width) / 2;
+    const top = window.screenY + (window.outerHeight - height) / 2;
+
+    const popup = window.open(
+      url,
+      title,
+      `width=${width},height=${height},left=${left},top=${top},scrollbars=yes,status=yes`,
+    );
+
+    if (!popup) {
+      reject(
+        new Error("Sign-in popup was blocked by your browser. Please allow popups for this site."),
+      );
+      return;
+    }
+
+    let resolved = false;
+
+    const messageHandler = (event: MessageEvent) => {
+      if (!event.data || typeof event.data !== "object") return;
+      if (event.data.type === "OAUTH_AUTH_SUCCESS") {
+        resolved = true;
+        window.removeEventListener("message", messageHandler);
+        clearInterval(pollTimer);
+        const session: AuthSession = {
+          token: event.data.token,
+          user: event.data.user,
+          provider: event.data.provider,
+          expiresAt: Date.now() + 1000 * 60 * 60 * 24 * 30,
+        };
+        saveSession(session);
+        resolve(session);
+      } else if (event.data.type === "OAUTH_AUTH_ERROR") {
+        resolved = true;
+        window.removeEventListener("message", messageHandler);
+        clearInterval(pollTimer);
+        reject(new Error(event.data.error || "Authentication failed"));
+      }
+    };
+
+    window.addEventListener("message", messageHandler);
+
+    const pollTimer = setInterval(() => {
+      if (popup.closed && !resolved) {
+        clearInterval(pollTimer);
+        window.removeEventListener("message", messageHandler);
+        reject(new Error("Sign-in popup was closed before completing."));
+      }
+    }, 1000);
+  });
+}
+
+/** Start Google OAuth popup flow. */
+export async function loginWithGoogle(): Promise<AuthSession> {
+  const url = await getOAuthUrl("google");
+  return openOAuthPopup(url, "Google Sign In");
+}
+
+/** Start GitHub OAuth popup flow. */
+export async function loginWithGithub(): Promise<AuthSession> {
+  const url = await getOAuthUrl("github");
+  return openOAuthPopup(url, "GitHub Sign In");
+}
+
+/** Start GitHub OAuth redirect fallback. */
 export function startGithubLogin() {
   const returnTo = encodeURIComponent(window.location.origin + "/auth/callback");
   window.location.href = `/api/auth/github?return_to=${returnTo}`;
 }
 
-/** Start Google OAuth (needs GOOGLE_CLIENT_ID / SECRET on the server). */
+/** Start Google OAuth redirect fallback. */
 export function startGoogleLogin() {
   const returnTo = encodeURIComponent(window.location.origin + "/auth/callback");
   window.location.href = `/api/auth/google?return_to=${returnTo}`;

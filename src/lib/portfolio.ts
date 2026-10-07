@@ -1,5 +1,6 @@
 // Shared, browser- and server-safe portfolio model.
-export type SectionType = "hero" | "about" | "skills" | "projects" | "repos" | "experience" | "contact";
+export type SectionType =
+  "hero" | "about" | "skills" | "projects" | "repos" | "experience" | "education" | "contact";
 
 export interface Section {
   id: string;
@@ -10,14 +11,27 @@ export interface Project {
   title: string;
   description: string;
   url: string;
-  tags: string;
+  repo?: string;
+  tags: string | string[];
 }
+export type ProjectItem = Project;
+
 export interface Experience {
   role: string;
   company: string;
   period: string;
   description: string;
 }
+export type ExperienceItem = Experience;
+
+export interface Education {
+  degree: string;
+  institution: string;
+  period: string;
+  description?: string;
+}
+export type EducationItem = Education;
+
 export interface Content {
   name: string;
   headline: string;
@@ -27,6 +41,7 @@ export interface Content {
   skills: string[];
   projects: Project[];
   experience: Experience[];
+  education: Education[];
   contact: { email: string; website: string; github: string; linkedin: string; twitter: string };
   githubUsername: string;
 }
@@ -76,6 +91,7 @@ export const SECTION_LABELS: Record<SectionType, string> = {
   projects: "Projects",
   repos: "GitHub Repos",
   experience: "Experience",
+  education: "Education",
   contact: "Contact",
 };
 
@@ -350,6 +366,7 @@ export const ALL_SECTIONS: SectionType[] = [
   "projects",
   "repos",
   "experience",
+  "education",
   "contact",
 ];
 
@@ -372,10 +389,18 @@ export const defaultContent = (): Content => ({
   ],
   experience: [
     {
-      role: "Role",
-      company: "Company / Club",
-      period: "2024 — Now",
-      description: "What you did there.",
+      role: "Software Engineering Intern",
+      company: "Tech Corp",
+      period: "2024 — Present",
+      description: "Designed distributed backend services and optimized query performance.",
+    },
+  ],
+  education: [
+    {
+      degree: "B.Tech in Computer Science & Engineering",
+      institution: "Jeppiaar Engineering College",
+      period: "2021 — 2025",
+      description: "Focus on Algorithms, Distributed Systems, and Database Architectures.",
     },
   ],
   contact: { email: "", website: "", github: "", linkedin: "", twitter: "" },

@@ -1,6 +1,8 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { ArrowRight, FileText, ImagePlus, Rocket } from "lucide-react";
+import { useEffect, useState } from "react";
+import { ArrowRight, FileText, ImagePlus, LayoutDashboard, Rocket } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { loadSession, type AuthSession } from "@/lib/auth";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -8,8 +10,7 @@ export const Route = createFileRoute("/")({
       { title: "Folio — Portfolio from your resume in minutes" },
       {
         name: "description",
-        content:
-          "Enter details, upload photo and resume, get a portfolio website deployed online.",
+        content: "Enter details, upload photo and resume, get a portfolio website deployed online.",
       },
       { property: "og:title", content: "Folio — Portfolio from your resume" },
       {
@@ -23,6 +24,13 @@ export const Route = createFileRoute("/")({
 
 function Landing() {
   const nav = useNavigate();
+  const [session, setSession] = useState<AuthSession | null>(null);
+
+  useEffect(() => {
+    setSession(loadSession());
+  }, []);
+
+  const hasAccount = session && session.user.login !== "guest" && session.token;
 
   return (
     <div className="min-h-screen grain">
@@ -30,13 +38,29 @@ function Landing() {
         <Link to="/" className="font-display text-2xl font-black italic">
           Folio.
         </Link>
-        <div className="flex gap-3">
-          <Button asChild variant="ghost">
-            <Link to="/auth">Sign in</Link>
-          </Button>
-          <Button variant="block" onClick={() => nav({ to: "/create" })}>
-            Create portfolio
-          </Button>
+        <div className="flex items-center gap-3">
+          {hasAccount ? (
+            <>
+              <Button asChild variant="ghost">
+                <Link to="/dashboard" className="flex items-center gap-1.5">
+                  <LayoutDashboard className="size-4" />
+                  <span>Dashboard</span>
+                </Link>
+              </Button>
+              <Button variant="block" onClick={() => nav({ to: "/create" })}>
+                Create portfolio
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button asChild variant="ghost">
+                <Link to="/auth">Sign in</Link>
+              </Button>
+              <Button variant="block" onClick={() => nav({ to: "/create" })}>
+                Create portfolio
+              </Button>
+            </>
+          )}
         </div>
       </nav>
 

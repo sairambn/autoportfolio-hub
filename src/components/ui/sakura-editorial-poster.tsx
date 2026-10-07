@@ -73,10 +73,7 @@ function getScrollParent(el: HTMLElement): HTMLElement | Window {
   return window;
 }
 
-function readScrollProgress(
-  track: HTMLElement,
-  scrollRoot: HTMLElement | Window,
-): number {
+function readScrollProgress(track: HTMLElement, scrollRoot: HTMLElement | Window): number {
   const useWindowScroll =
     !(scrollRoot instanceof HTMLElement) ||
     (typeof document !== "undefined" &&
@@ -131,13 +128,7 @@ function useSakuraEditorialFonts() {
   }, []);
 }
 
-function SakuraFitTitle({
-  title,
-  revealProgress,
-}: {
-  title: string;
-  revealProgress: number;
-}) {
+function SakuraFitTitle({ title, revealProgress }: { title: string; revealProgress: number }) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const probeRef = useRef<HTMLSpanElement>(null);
   const [fontPx, setFontPx] = useState<number | null>(null);
@@ -190,10 +181,7 @@ function SakuraFitTitle({
   };
 
   return (
-    <div
-      ref={wrapRef}
-      className="absolute inset-x-[4%] top-[4%] z-20 overflow-visible"
-    >
+    <div ref={wrapRef} className="absolute inset-x-[4%] top-[4%] z-20 overflow-visible">
       <span
         ref={probeRef}
         aria-hidden
@@ -213,9 +201,7 @@ function SakuraFitTitle({
           const t = charReveal(titleProgress, item.fromCenter);
           const y = (1 - t) * (18 + item.fromCenter * 24);
           const side = item.index < chars.length / 2 ? 1 : -1;
-          const x =
-            (1 - t) *
-            (item.fromCenter > 0.01 ? item.fromCenter * 16 * side : 0);
+          const x = (1 - t) * (item.fromCenter > 0.01 ? item.fromCenter * 16 * side : 0);
           return (
             <span
               key={item.key}
@@ -319,8 +305,7 @@ function SakuraEditorialCopy({
       <h2
         className="relative z-10 mt-[clamp(0.7rem,2.2cqw,1.15rem)] text-[clamp(1.2rem,3.6cqw,1.7rem)] font-semibold leading-[1.3] text-[#f6eee8]"
         style={{
-          fontFamily:
-            '"Cormorant Garamond", "Hiragino Mincho ProN", "Yu Mincho", Georgia, serif',
+          fontFamily: '"Cormorant Garamond", "Hiragino Mincho ProN", "Yu Mincho", Georgia, serif',
         }}
       >
         {headline}
@@ -371,9 +356,7 @@ export function SakuraEditorialPoster({
   const trackRef = useRef<HTMLElement>(null);
   const keywordItems = keywords.filter((item) => item.label.trim().length > 0);
   const locked = forceProgress != null && Number.isFinite(forceProgress);
-  const [progress, setProgress] = useState(
-    forceProgress != null ? clamp01(forceProgress) : 0,
-  );
+  const [progress, setProgress] = useState(forceProgress != null ? clamp01(forceProgress) : 0);
   const [stickyPx, setStickyPx] = useState<number | null>(null);
   const fillViewport = locked || preview;
   const trackHeight = fillViewport ? "auto" : height;
@@ -387,9 +370,7 @@ export function SakuraEditorialPoster({
     }
     const track = trackRef.current;
     if (!track) return;
-    const reduceMotion = window.matchMedia(
-      "(prefers-reduced-motion: reduce)",
-    ).matches;
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     if (reduceMotion) {
       setProgress(1);
       return;
@@ -437,25 +418,16 @@ export function SakuraEditorialPoster({
     };
   }, [forceProgress, locked, preview]);
 
-  const revealProgress =
-    locked || preview ? clamp01(forceProgress ?? 0) : progress;
+  const revealProgress = locked || preview ? clamp01(forceProgress ?? 0) : progress;
   const copyProgress = clamp01((revealProgress - 0.78) / 0.22);
   const copyOffset = `${(1 - copyProgress) * 100}%`;
   const panelHeight =
-    useSticky && stickyPx != null
-      ? stickyPx
-      : fillViewport
-        ? "100%"
-        : ("100svh" as const);
+    useSticky && stickyPx != null ? stickyPx : fillViewport ? "100%" : ("100svh" as const);
 
   return (
     <section
       ref={trackRef}
-      className={cn(
-        "relative isolate w-full bg-[#ece8df]",
-        fillViewport && "h-screen",
-        className,
-      )}
+      className={cn("relative isolate w-full bg-[#ece8df]", fillViewport && "h-screen", className)}
       style={{
         height: useSticky ? trackHeight : undefined,
         fontFamily: '"Jost", ui-sans-serif, sans-serif',

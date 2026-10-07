@@ -61,7 +61,10 @@ export function createPortfolio(login: string, opts?: { title?: string }): Portf
   const isGuest = login === "guest";
   const base = isGuest
     ? "portfolio"
-    : login.toLowerCase().replace(/[^a-z0-9-]/g, "").slice(0, 20) || "me";
+    : login
+        .toLowerCase()
+        .replace(/[^a-z0-9-]/g, "")
+        .slice(0, 20) || "me";
   const content = defaultContent();
   const record: PortfolioRecord = {
     id: uid() + uid(),
@@ -115,6 +118,18 @@ export function updatePortfolio(
   list[i] = { ...list[i], ...patch, updated_at: new Date().toISOString() };
   writeAll(login, list);
   return list[i];
+}
+
+export function upsertPortfolio(login: string, record: PortfolioRecord): PortfolioRecord {
+  const list = readAll(login);
+  const i = list.findIndex((p) => p.id === record.id);
+  if (i >= 0) {
+    list[i] = { ...list[i], ...record };
+  } else {
+    list.unshift(record);
+  }
+  writeAll(login, list);
+  return record;
 }
 
 export function deletePortfolio(login: string, id: string) {

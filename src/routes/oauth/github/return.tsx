@@ -11,14 +11,21 @@ function OAuthReturn() {
   useEffect(() => {
     const p = new URLSearchParams(window.location.search);
     const send = (type: string, code?: string) => {
-      window.opener?.postMessage({ type, connectorId: "github", code: code ?? null }, window.location.origin);
+      window.opener?.postMessage(
+        { type, connectorId: "github", code: code ?? null },
+        window.location.origin,
+      );
       window.close();
     };
-    if (p.get("success") !== "true") { setMsg(p.get("error") ?? "Connection did not complete."); return send("appUserConnectorOAuthFailed"); }
+    if (p.get("success") !== "true") {
+      setMsg(p.get("error") ?? "Connection did not complete.");
+      return send("appUserConnectorOAuthFailed");
+    }
     const code = p.get("code");
     if (!code) {
       if (p.get("offline_access_allowed") === "false") return send("appUserConnectorOAuthComplete");
-      setMsg("Missing code."); return send("appUserConnectorOAuthFailed");
+      setMsg("Missing code.");
+      return send("appUserConnectorOAuthFailed");
     }
     send("appUserConnectorOAuthComplete", code);
   }, []);

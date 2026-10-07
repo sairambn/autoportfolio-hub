@@ -27,7 +27,8 @@ function SakuraDemoPage() {
       <SakuraEditorialPoster className="w-full" />
       <div className="mx-auto max-w-lg px-6 py-16 text-center text-sm text-black/60">
         <p>
-          Component path: <code className="text-black/80">src/components/ui/sakura-editorial-poster.tsx</code>
+          Component path:{" "}
+          <code className="text-black/80">src/components/ui/sakura-editorial-poster.tsx</code>
         </p>
         <p className="mt-2">Images: Unsplash (cherry blossoms). No extra npm packages required.</p>
       </div>
