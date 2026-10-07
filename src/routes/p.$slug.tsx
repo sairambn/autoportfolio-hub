@@ -48,6 +48,12 @@ function PublicPortfolio() {
   const { content, theme, sections } = normalize(row);
   const repos = useGithubRepos(content.githubUsername);
   return (
-    <PortfolioView content={content} theme={theme} sections={sections} repos={repos.data ?? null} />
+    <PortfolioView
+      content={content}
+      theme={theme}
+      sections={sections}
+      repos={repos.data ?? null}
+      liquidBackground={true}
+    />
   );
 }
