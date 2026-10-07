@@ -6,23 +6,23 @@ export const PORTFOLIO_CSS = `
 .pf{background:var(--pf-bg);color:var(--pf-fg);font-family:var(--pf-body);min-height:100%;line-height:1.55;-webkit-font-smoothing:antialiased}
 .pf *{box-sizing:border-box}
 .pf a{color:inherit;text-decoration:none}
-.pf-wrap{max-width:720px;margin:0 auto;padding:0 24px 80px}
-.pf-nav{display:flex;justify-content:space-between;align-items:center;padding:28px 0 8px;font-size:14px;font-weight:600}
+.pf-wrap{max-width:720px;margin:0 auto;padding:0 28px 96px}
+.pf-nav{display:flex;justify-content:space-between;align-items:center;padding:32px 0 12px;font-size:14px;font-weight:600}
 .pf-nav a{opacity:.7}
 .pf-nav a:hover{opacity:1}
-.pf-sec{padding:56px 0 8px;border-top:1px solid color-mix(in oklab,var(--pf-fg) 10%,transparent)}
+.pf-sec{padding:64px 0 12px;border-top:1px solid color-mix(in oklab,var(--pf-fg) 10%,transparent)}
 .pf-num{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--pf-muted);margin:0 0 12px;font-weight:600}
-.pf-h{font-family:var(--pf-head);font-size:clamp(28px,4vw,36px);line-height:1.15;margin:0 0 20px;font-weight:700;letter-spacing:-.02em}
-.pf-hero{padding:48px 0 40px}
+.pf-h{font-family:var(--pf-head);font-size:clamp(26px,4vw,36px);line-height:1.15;margin:0 0 20px;font-weight:700;letter-spacing:-.02em}
+.pf-hero{padding:52px 0 44px}
 .pf-hero-top{display:flex;gap:28px;align-items:flex-start;flex-wrap:wrap}
-.pf-avatar{width:96px;height:96px;border-radius:999px;object-fit:cover;border:2px solid color-mix(in oklab,var(--pf-fg) 18%,transparent)}
-.pf-name{font-family:var(--pf-head);font-size:clamp(40px,8vw,64px);line-height:.95;margin:0;font-weight:800;letter-spacing:-.03em}
+.pf-avatar{width:96px;height:96px;border-radius:999px;object-fit:cover;border:2px solid color-mix(in oklab,var(--pf-fg) 18%,transparent);flex-shrink:0}
+.pf-name{font-family:var(--pf-head);font-size:clamp(36px,7vw,64px);line-height:.95;margin:0;font-weight:800;letter-spacing:-.03em;word-break:break-word}
 .pf-sub{margin:14px 0 0;font-size:15px;color:var(--pf-muted)}
-.pf-headline{font-size:18px;margin:18px 0 0;max-width:34em;font-weight:500}
-.pf-bio{font-size:16px;color:var(--pf-muted);margin:14px 0 0;max-width:36em;white-space:pre-wrap}
+.pf-headline{font-size:clamp(16px,2.5vw,18px);margin:18px 0 0;max-width:34em;font-weight:500}
+.pf-bio{font-size:clamp(15px,2.2vw,16px);color:var(--pf-muted);margin:14px 0 0;max-width:36em;white-space:pre-wrap}
 .pf-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:36px}
 .pf-stat{background:var(--pf-surface);border-radius:12px;padding:16px 14px}
-.pf-stat b{display:block;font-family:var(--pf-head);font-size:15px;margin-bottom:4px}
+.pf-stat b{display:block;font-family:var(--pf-head);font-size:15px;margin-bottom:4px;word-break:break-word}
 .pf-stat span{font-size:13px;color:var(--pf-muted)}
 .pf-marquee{overflow:hidden;margin:28px 0 0;border-block:1px solid color-mix(in oklab,var(--pf-fg) 10%,transparent);padding:10px 0}
 .pf-marquee-inner{display:flex;gap:2em;white-space:nowrap;font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--pf-muted);animation:pf-scroll 28s linear infinite}
@@ -33,7 +33,7 @@ export const PORTFOLIO_CSS = `
 .pf-item{display:grid;grid-template-columns:48px 1fr;gap:12px;padding:22px 0;border-bottom:1px solid color-mix(in oklab,var(--pf-fg) 10%,transparent)}
 .pf-item:last-child{border-bottom:none}
 .pf-idx{font-family:var(--pf-head);font-size:14px;color:var(--pf-accent);font-weight:700;padding-top:2px}
-.pf-item h3{margin:0;font-family:var(--pf-head);font-size:18px;font-weight:700;letter-spacing:-.01em}
+.pf-item h3{margin:0;font-family:var(--pf-head);font-size:clamp(16px,2.5vw,18px);font-weight:700;letter-spacing:-.01em}
 .pf-item p{margin:6px 0 0;color:var(--pf-muted);font-size:14.5px;line-height:1.5}
 .pf-meta{font-size:12px;color:var(--pf-accent);margin-top:10px;font-weight:600}
 .pf-exp{display:grid;grid-template-columns:120px 1fr;gap:8px 20px;padding:18px 0;border-bottom:1px solid color-mix(in oklab,var(--pf-fg) 10%,transparent)}
@@ -41,7 +41,7 @@ export const PORTFOLIO_CSS = `
 .pf-exp .p{color:var(--pf-muted);font-size:13px}
 .pf-exp h3{margin:0;font-family:var(--pf-head);font-size:17px}
 .pf-links{display:flex;flex-wrap:wrap;gap:10px}
-.pf-btn{padding:10px 16px;border:1.5px solid color-mix(in oklab,var(--pf-fg) 35%,transparent);border-radius:999px;font-size:13px;font-weight:600}
+.pf-btn{padding:10px 16px;border:1.5px solid color-mix(in oklab,var(--pf-fg) 35%,transparent);border-radius:999px;font-size:13px;font-weight:600;display:inline-block}
 .pf-btn:hover{background:var(--pf-accent);border-color:var(--pf-accent);color:var(--pf-bg)}
 .pf-foot{padding:48px 0 24px;color:var(--pf-muted);font-size:12px}
 .pf-t-signal .pf-name{font-style:italic;font-weight:700}
@@ -57,11 +57,49 @@ export const PORTFOLIO_CSS = `
 .pf-liquid{position:relative;isolation:isolate}
 .pf-liquid .pf-wrap{position:relative;z-index:10}
 .pf-liquid .pf-stat,.pf-liquid .pf-chip,.pf-liquid .pf-btn{backdrop-filter:blur(8px);background:color-mix(in oklab,var(--pf-surface) 85%,transparent)}
-@media(max-width:640px){
-  .pf-stats{grid-template-columns:1fr}
-  .pf-exp{grid-template-columns:1fr}
-  .pf-item{grid-template-columns:36px 1fr}
+
+/* Tablet */
+@media(max-width:768px){
+  .pf-wrap{padding:0 20px 72px}
+  .pf-hero{padding:40px 0 32px}
+  .pf-sec{padding:48px 0 8px}
+  .pf-stats{gap:10px}
 }
+
+/* Mobile */
+@media(max-width:640px){
+  .pf-wrap{padding:0 16px 64px}
+  .pf-nav{padding:20px 0 8px;font-size:13px}
+  .pf-hero{padding:32px 0 28px}
+  .pf-hero-top{gap:16px;flex-direction:column;align-items:flex-start}
+  .pf-avatar{width:72px;height:72px}
+  .pf-name{font-size:clamp(32px,10vw,48px)}
+  .pf-sub{font-size:14px;margin-top:10px}
+  .pf-headline{font-size:16px;margin-top:14px}
+  .pf-bio{font-size:15px}
+  .pf-stats{grid-template-columns:1fr;gap:8px;margin-top:28px}
+  .pf-stat{padding:14px 12px}
+  .pf-stat b{font-size:14px}
+  .pf-sec{padding:40px 0 8px}
+  .pf-h{font-size:clamp(24px,6vw,30px);margin-bottom:16px}
+  .pf-num{font-size:11px;margin-bottom:10px}
+  .pf-exp{grid-template-columns:1fr;gap:4px 0;padding:16px 0}
+  .pf-item{grid-template-columns:32px 1fr;gap:10px;padding:18px 0}
+  .pf-item h3{font-size:16px}
+  .pf-item p{font-size:14px}
+  .pf-links{gap:8px}
+  .pf-btn{padding:10px 14px;font-size:12px}
+  .pf-foot{padding:36px 0 20px;font-size:11px}
+  .pf-marquee{margin-top:20px}
+}
+
+/* Very small phones */
+@media(max-width:380px){
+  .pf-wrap{padding:0 12px 56px}
+  .pf-name{font-size:30px}
+  .pf-stats{margin-top:24px}
+}
+
 @media(prefers-reduced-motion:reduce){.pf-marquee-inner{animation:none}}
 `;
 
