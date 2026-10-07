@@ -31,7 +31,7 @@ export interface Content {
   githubUsername: string;
 }
 
-/** Seven visual themes students can pick first. */
+/** Visual themes students can pick. */
 export type TemplateId =
   | "signal"
   | "minimal"
@@ -39,7 +39,13 @@ export type TemplateId =
   | "ocean"
   | "campus"
   | "neon"
-  | "mono";
+  | "mono"
+  | "slate"
+  | "rose"
+  | "ember"
+  | "forest"
+  | "violet"
+  | "sand";
 
 export interface Palette {
   bg: string;
@@ -131,6 +137,12 @@ export const TEMPLATE_ORDER: TemplateId[] = [
   "campus",
   "neon",
   "mono",
+  "slate",
+  "rose",
+  "ember",
+  "forest",
+  "violet",
+  "sand",
 ];
 
 export const TEMPLATES: Record<TemplateId, TemplateMeta> = {
@@ -236,6 +248,96 @@ export const TEMPLATES: Record<TemplateId, TemplateMeta> = {
         accent: "#3fb950",
         muted: "#8b949e",
         surface: "#161b22",
+      },
+    },
+  },
+  slate: {
+    label: "Slate",
+    blurb: "Cool grey · modern and balanced",
+    theme: {
+      template: "slate",
+      font: "outfit",
+      palette: {
+        bg: "#f1f5f9",
+        fg: "#0f172a",
+        accent: "#475569",
+        muted: "#64748b",
+        surface: "#e2e8f0",
+      },
+    },
+  },
+  rose: {
+    label: "Rose",
+    blurb: "Soft pink · warm and distinctive",
+    theme: {
+      template: "rose",
+      font: "playfair",
+      palette: {
+        bg: "#fdf2f4",
+        fg: "#4a1525",
+        accent: "#be123c",
+        muted: "#9f6b7a",
+        surface: "#fce7eb",
+      },
+    },
+  },
+  ember: {
+    label: "Ember",
+    blurb: "Deep charcoal + orange · strong presence",
+    theme: {
+      template: "ember",
+      font: "syne",
+      palette: {
+        bg: "#1c1917",
+        fg: "#fafaf9",
+        accent: "#ea580c",
+        muted: "#a8a29e",
+        surface: "#292524",
+      },
+    },
+  },
+  forest: {
+    label: "Forest",
+    blurb: "Deep green · calm and focused",
+    theme: {
+      template: "forest",
+      font: "dmserif",
+      palette: {
+        bg: "#14231a",
+        fg: "#e8f0ea",
+        accent: "#4ade80",
+        muted: "#86a38f",
+        surface: "#1c3226",
+      },
+    },
+  },
+  violet: {
+    label: "Violet",
+    blurb: "Purple night · creative and modern",
+    theme: {
+      template: "violet",
+      font: "fraunces",
+      palette: {
+        bg: "#1e1033",
+        fg: "#f3e8ff",
+        accent: "#c084fc",
+        muted: "#a78bba",
+        surface: "#2a1a45",
+      },
+    },
+  },
+  sand: {
+    label: "Sand",
+    blurb: "Warm beige · soft and approachable",
+    theme: {
+      template: "sand",
+      font: "outfit",
+      palette: {
+        bg: "#faf6f1",
+        fg: "#3d3429",
+        accent: "#b45309",
+        muted: "#8a7e6e",
+        surface: "#f0e9df",
       },
     },
   },
