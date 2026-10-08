@@ -130,13 +130,12 @@ export const Route = createFileRoute("/api/auth/google")({
         const url = new URL(request.url);
 
         if (!clientId || !clientSecret) {
-          return popupCallbackHtml({
-            success: false,
-            provider: "google",
-            error:
-              "Google OAuth is not configured. Please add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET to your environment variables.",
-            returnTo: "/auth",
-          });
+          const returnToParam = url.searchParams.get("return_to") || "/dashboard";
+          // Seamlessly redirect to client-side Firebase Auth so users on Vercel never encounter configuration errors
+          return Response.redirect(
+            `${url.origin}/auth?provider=google&auto=true&return_to=${encodeURIComponent(returnToParam)}`,
+            302,
+          );
         }
 
         const code = url.searchParams.get("code");

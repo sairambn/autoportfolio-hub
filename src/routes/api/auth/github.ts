@@ -130,13 +130,11 @@ export const Route = createFileRoute("/api/auth/github")({
         const url = new URL(request.url);
 
         if (!clientId || !clientSecret) {
-          return popupCallbackHtml({
-            success: false,
-            provider: "github",
-            error:
-              "GitHub OAuth is not configured. Please add GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET to your environment variables.",
-            returnTo: "/auth",
-          });
+          const returnToParam = url.searchParams.get("return_to") || "/dashboard";
+          return Response.redirect(
+            `${url.origin}/auth?provider=github&auto=true&return_to=${encodeURIComponent(returnToParam)}`,
+            302,
+          );
         }
 
         const code = url.searchParams.get("code");

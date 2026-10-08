@@ -14,13 +14,14 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { PortfolioView } from "@/components/PortfolioView";
+import { LivePortfolioPreview } from "@/components/LivePortfolioPreview";
 import { ProfessionalDetailsForm } from "@/components/ProfessionalDetailsForm";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ensureGuestSession, signInWithToken, loadSession } from "@/lib/auth";
-import { publishPortfolio } from "@/lib/github-client";
+import { createRepoAndPushPortfolioHtml, publishPortfolio } from "@/lib/github-client";
 import {
   defaultContent,
   defaultSections,
@@ -273,10 +274,10 @@ function CreateWizard() {
         updated_at: new Date().toISOString(),
         created_at: new Date().toISOString(),
       };
-      const result = await publishPortfolio({
+      const result = await createRepoAndPushPortfolioHtml({
         token: clean,
-        login,
-        repo: repoName.trim() || "my-portfolio",
+        login: login === "guest" ? undefined : login,
+        repoName: repoName.trim() || "my-portfolio",
         portfolio: row,
       });
       updatePortfolio(login, portfolioId, {
@@ -499,18 +500,14 @@ function CreateWizard() {
                   </div>
                 </div>
 
-                <div className="overflow-hidden rounded-lg border-2 border-ink bg-card shadow-sm">
-                  <div className="border-b-2 border-ink bg-muted/50 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    Live website preview
-                  </div>
-                  <div className="max-h-[70vh] overflow-y-auto">
-                    <PortfolioView
-                      content={content}
-                      theme={previewTheme}
-                      sections={previewSections}
-                      repos={null}
-                    />
-                  </div>
+                <div className="sticky top-6">
+                  <LivePortfolioPreview
+                    content={content}
+                    theme={previewTheme}
+                    sections={previewSections}
+                    repos={null}
+                    height="h-[640px]"
+                  />
                 </div>
               </section>
             )}
@@ -556,18 +553,20 @@ function CreateWizard() {
                   })}
                 </div>
 
-                <div className="mx-auto max-w-3xl overflow-hidden rounded-xl border-2 border-ink">
-                  <div className="border-b-2 border-ink bg-muted/40 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    Preview · {TEMPLATES[template].label}
-                  </div>
-                  <div className="max-h-[50vh] overflow-y-auto">
-                    <PortfolioView
-                      content={content}
-                      theme={TEMPLATES[template].theme}
-                      sections={previewSections}
-                      repos={null}
-                    />
-                  </div>
+                <div className="mx-auto max-w-4xl">
+                  <LivePortfolioPreview
+                    content={content}
+                    theme={TEMPLATES[template].theme}
+                    sections={previewSections}
+                    repos={null}
+                    onThemeChange={(newTheme) => {
+                      const matched = (Object.keys(TEMPLATES) as TemplateId[]).find(
+                        (k) => TEMPLATES[k].theme.template === newTheme.template,
+                      );
+                      if (matched) setTemplate(matched);
+                    }}
+                    height="h-[520px]"
+                  />
                 </div>
 
                 <div className="mx-auto flex max-w-3xl justify-between">

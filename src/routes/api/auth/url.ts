@@ -15,11 +15,10 @@ export const Route = createFileRoute("/api/auth/url")({
           if (!clientId) {
             return new Response(
               JSON.stringify({
-                error: "GOOGLE_CLIENT_ID not configured",
-                message:
-                  "Google Client ID is missing. Please set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in your environment variables.",
+                url: `${origin}/auth?provider=google&auto=true`,
+                isFallback: true,
               }),
-              { status: 400, headers: { "Content-Type": "application/json" } },
+              { status: 200, headers: { "Content-Type": "application/json" } },
             );
           }
 
@@ -50,11 +49,10 @@ export const Route = createFileRoute("/api/auth/url")({
           if (!clientId) {
             return new Response(
               JSON.stringify({
-                error: "GITHUB_CLIENT_ID not configured",
-                message:
-                  "GitHub Client ID is missing. Please set GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET in your environment variables.",
+                url: `${origin}/auth?provider=github&auto=true`,
+                isFallback: true,
               }),
-              { status: 400, headers: { "Content-Type": "application/json" } },
+              { status: 200, headers: { "Content-Type": "application/json" } },
             );
           }
 

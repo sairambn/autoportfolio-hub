@@ -243,12 +243,10 @@ export async function loginWithGithub(): Promise<AuthSession> {
 
 /** Start GitHub OAuth redirect fallback. */
 export function startGithubLogin() {
-  const returnTo = encodeURIComponent(window.location.origin + "/auth/callback");
-  window.location.href = `/api/auth/github?return_to=${returnTo}`;
+  window.location.href = `/auth?provider=github&auto=true`;
 }
 
 /** Start Google OAuth redirect fallback. */
 export function startGoogleLogin() {
-  const returnTo = encodeURIComponent(window.location.origin + "/auth/callback");
-  window.location.href = `/api/auth/google?return_to=${returnTo}`;
+  window.location.href = `/auth?provider=google&auto=true`;
 }

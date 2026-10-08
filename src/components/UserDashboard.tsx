@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
   Check,
-  Database,
   Edit3,
   ExternalLink,
   Globe,
@@ -18,6 +17,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { ProfessionalDetailsForm } from "@/components/ProfessionalDetailsForm";
+import { GithubFirebaseAuth } from "@/components/GithubFirebaseAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -104,7 +104,7 @@ export function UserDashboard() {
 
     try {
       await savePortfolioToFirestore(currentUser.uid, newPortfolio);
-      toast.success("Structured portfolio generated and saved to Firestore!");
+      toast.success("Structured portfolio generated successfully!");
       setShowFormBuilderModal(false);
       nav({ to: "/editor/$id", params: { id: newId } });
     } catch (e) {
@@ -243,7 +243,7 @@ export function UserDashboard() {
 
     try {
       await savePortfolioToFirestore(currentUser.uid, newPortfolio);
-      toast.success("New portfolio created in Firestore");
+      toast.success("New portfolio created");
       nav({ to: "/editor/$id", params: { id: newId } });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not create portfolio");
@@ -252,7 +252,7 @@ export function UserDashboard() {
 
   async function handleDeletePortfolio(portfolioId: string) {
     if (!currentUser) return;
-    if (!confirm("Are you sure you want to delete this portfolio from Firestore?")) return;
+    if (!confirm("Are you sure you want to delete this portfolio?")) return;
     const session = loadSession();
     const login = session?.user.login || "user";
     deletePortfolio(login, portfolioId);
@@ -310,9 +310,6 @@ export function UserDashboard() {
               </div>
             )}
             <span className="text-xs font-bold">{displayName}</span>
-            <span className="rounded bg-accent px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-accent-foreground">
-              Firebase
-            </span>
           </div>
 
           <Button variant="ghost" size="sm" onClick={handleSignOut} title="Sign Out">
@@ -348,7 +345,7 @@ export function UserDashboard() {
                 <div className="flex flex-wrap items-center gap-2">
                   <h1 className="text-3xl font-black md:text-4xl">{displayName}</h1>
                   <span className="rounded-full border border-ink bg-primary/10 px-2.5 py-0.5 text-xs font-bold text-primary">
-                    {profile?.provider || "Google Account"}
+                    {profile?.provider || "Verified Account"}
                   </span>
                 </div>
                 <p className="mt-1 text-sm font-medium text-muted-foreground">{displayEmail}</p>
@@ -382,7 +379,7 @@ export function UserDashboard() {
               onSubmit={handleSaveProfile}
               className="mt-6 space-y-4 rounded-xl border-2 border-ink bg-muted/20 p-5 animate-rise"
             >
-              <h3 className="font-bold">Edit Firestore Profile</h3>
+              <h3 className="font-bold">Edit Profile</h3>
               <div className="grid gap-4 md:grid-cols-2">
                 <div>
                   <Label>Display Name</Label>
@@ -423,7 +420,7 @@ export function UserDashboard() {
                   Cancel
                 </Button>
                 <Button type="submit" variant="block" size="sm" disabled={saving}>
-                  <Save className="mr-1.5 size-4" /> {saving ? "Saving…" : "Save to Firebase"}
+                  <Save className="mr-1.5 size-4" /> {saving ? "Saving…" : "Save Changes"}
                 </Button>
               </div>
             </form>
@@ -445,10 +442,10 @@ export function UserDashboard() {
             </div>
             <div className="rounded-lg border border-ink/20 bg-card p-3 shadow-sm">
               <span className="text-xs text-muted-foreground font-semibold uppercase tracking-wide">
-                Database
+                Drafts
               </span>
-              <div className="mt-1 flex items-center gap-1 text-sm font-bold text-emerald-600">
-                <Database className="size-4" /> Cloud Firestore
+              <div className="mt-1 text-2xl font-black text-muted-foreground">
+                {portfolios.filter((p) => !p.published && !p.github_repo).length}
               </div>
             </div>
             <div className="rounded-lg border border-ink/20 bg-card p-3 shadow-sm">
@@ -460,12 +457,21 @@ export function UserDashboard() {
           </div>
         </div>
 
+        {/* GitHub Integration Banner */}
+        <div className="mb-8">
+          <GithubFirebaseAuth
+            mode="banner"
+            title="GitHub Publishing Integration"
+            description="Connect your GitHub account for automated repository creation and 1-click deployments to GitHub Pages."
+          />
+        </div>
+
         {/* Portfolios Section */}
         <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="text-3xl font-black">Your Projects & Portfolios</h2>
             <p className="text-sm text-muted-foreground">
-              Stored securely in your Cloud Firestore database collection.
+              Stored securely and ready to edit, preview, or publish live.
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -486,7 +492,7 @@ export function UserDashboard() {
         {loading ? (
           <div className="grid place-items-center rounded-2xl border-2 border-ink bg-card p-12">
             <RefreshCw className="size-8 animate-spin text-muted-foreground" />
-            <p className="mt-3 text-sm text-muted-foreground">Loading from Firestore…</p>
+            <p className="mt-3 text-sm text-muted-foreground">Loading your portfolios…</p>
           </div>
         ) : portfolios.length === 0 ? (
           <div className="block-card p-12 text-center">
@@ -578,7 +584,7 @@ export function UserDashboard() {
                 <h2 className="font-display text-3xl font-black">Generate Structured Portfolio</h2>
                 <p className="text-xs text-muted-foreground">
                   Complete your professional profile and click Generate to create a customized
-                  portfolio in Firestore.
+                  portfolio.
                 </p>
               </div>
               <Button

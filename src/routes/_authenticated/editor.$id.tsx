@@ -17,13 +17,14 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { PortfolioView } from "@/components/PortfolioView";
+import { GithubFirebaseAuth } from "@/components/GithubFirebaseAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useGithubRepos } from "@/hooks/use-github-repos";
-import { publishPortfolio } from "@/lib/github-client";
+import { createRepoAndPushPortfolioHtml, publishPortfolio } from "@/lib/github-client";
 import {
   TEMPLATE_ORDER,
   TEMPLATES,
@@ -36,8 +37,19 @@ import {
 } from "@/lib/portfolio";
 import { renderPortfolioHtml } from "@/lib/export-html";
 import { fileToDataUrl } from "@/lib/resume-parse";
-import { getPortfolio, updatePortfolio, type PortfolioRecord } from "@/lib/storage";
-import { auth, savePortfolioToFirestore, type FirebasePortfolioDoc } from "@/lib/firebase";
+import {
+  getPortfolio,
+  updatePortfolio,
+  upsertPortfolio,
+  type PortfolioRecord,
+} from "@/lib/storage";
+import {
+  auth,
+  getPortfolioDocFromFirestore,
+  onAuthStateChanged,
+  savePortfolioToFirestore,
+  type FirebasePortfolioDoc,
+} from "@/lib/firebase";
 
 export const Route = createFileRoute("/_authenticated/editor/$id")({
   head: () => ({
@@ -69,17 +81,99 @@ function EditorPage() {
   const photoInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    let active = true;
+
+    // 1. Immediate local cache check
     const r = getPortfolio(login, id);
-    if (!r) {
-      toast.error("Portfolio not found");
-      nav({ to: "/dashboard" });
+    if (r) {
+      setRecord(r);
+      setContent(r.content);
+      setTheme(r.theme);
+      setTitle(r.title);
+      if (r.github_repo) setRepoName(r.github_repo);
       return;
     }
-    setRecord(r);
-    setContent(r.content);
-    setTheme(r.theme);
-    setTitle(r.title);
-    if (r.github_repo) setRepoName(r.github_repo);
+
+    const loadDoc = async (uid: string) => {
+      try {
+        const doc = await getPortfolioDocFromFirestore(uid, id);
+        if (doc && active) {
+          const rec: PortfolioRecord = {
+            id: doc.id,
+            slug: doc.slug,
+            title: doc.title,
+            published: doc.published,
+            github_repo: doc.github_repo,
+            auto_push: doc.auto_push,
+            last_pushed_at: doc.last_pushed_at,
+            content: doc.content as Content,
+            theme: doc.theme as Theme,
+            sections: doc.sections as PortfolioRecord["sections"],
+            created_at: doc.createdAt,
+            updated_at: doc.updatedAt,
+          };
+          upsertPortfolio(login, rec);
+          setRecord(rec);
+          setContent(rec.content);
+          setTheme(rec.theme);
+          setTitle(rec.title);
+          if (rec.github_repo) setRepoName(rec.github_repo);
+          return true;
+        }
+      } catch (err) {
+        console.warn("Could not fetch portfolio doc:", err);
+      }
+      return false;
+    };
+
+    // 2. Check if auth user already present
+    if (auth.currentUser) {
+      loadDoc(auth.currentUser.uid).then((found) => {
+        if (!found && active) {
+          const fallback = getPortfolio(login, id);
+          if (fallback) {
+            setRecord(fallback);
+            setContent(fallback.content);
+            setTheme(fallback.theme);
+            setTitle(fallback.title);
+            if (fallback.github_repo) setRepoName(fallback.github_repo);
+            return;
+          }
+          toast.error("Portfolio not found");
+          nav({ to: "/dashboard" });
+        }
+      });
+      return () => {
+        active = false;
+      };
+    }
+
+    // 3. Wait for Firebase auth to initialize
+    const unsub = onAuthStateChanged(auth, async (user) => {
+      if (user && active) {
+        const found = await loadDoc(user.uid);
+        if (found) return;
+      }
+      if (active) {
+        // Final fallback check
+        const finalR = getPortfolio(login, id);
+        if (finalR) {
+          setRecord(finalR);
+          setContent(finalR.content);
+          setTheme(finalR.theme);
+          setTitle(finalR.title);
+          if (finalR.github_repo) setRepoName(finalR.github_repo);
+          return;
+        }
+        toast.error("Portfolio not found");
+        nav({ to: "/dashboard" });
+      }
+    });
+
+    return () => {
+      active = false;
+      unsub();
+    };
   }, [login, id, nav]);
 
   const repos = useGithubRepos(content?.githubUsername);
@@ -270,10 +364,10 @@ function EditorPage() {
     setBusy(true);
     try {
       const deployRepo = repoName.trim() || "my-portfolio";
-      const result = await publishPortfolio({
+      const result = await createRepoAndPushPortfolioHtml({
         token,
-        login: session.user.login === "guest" ? "user" : session.user.login,
-        repo: deployRepo,
+        login: session.user.login === "guest" ? undefined : session.user.login,
+        repoName: deployRepo,
         portfolio: {
           ...record,
           title,
@@ -849,7 +943,6 @@ function EditorPage() {
               theme={theme}
               sections={record.sections}
               repos={repos.data ?? null}
-              liquidBackground={true}
             />
           </div>
         </div>
@@ -857,58 +950,72 @@ function EditorPage() {
 
       {/* Deploy Dialog */}
       {deployOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <div className="w-full max-w-md rounded-2xl border bg-background p-6 shadow-2xl">
-            <h2 className="text-xl font-bold">Deploy to GitHub Pages</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Publish your portfolio as a free static website hosted on GitHub Pages.
-            </p>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 overflow-y-auto">
+          <div className="w-full max-w-lg rounded-2xl border border-border bg-background p-6 shadow-2xl space-y-5 my-8">
+            <div>
+              <h2 className="text-xl font-bold">Deploy to GitHub Pages</h2>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Publish your portfolio directly to GitHub repository with static hosting on GitHub
+                Pages.
+              </p>
+            </div>
 
-            <div className="mt-4 space-y-4">
+            {/* GitHub Firebase Auth Status Component */}
+            <GithubFirebaseAuth
+              mode="card"
+              title="GitHub Account & Repo Access"
+              description="Authenticated via Firebase Auth with repository write permissions."
+              onAuthSuccess={(newSession) => {
+                if (newSession.token) setGithubToken(newSession.token);
+              }}
+            />
+
+            <div className="space-y-4">
               <div>
-                <Label>Repository Name</Label>
+                <Label className="text-xs font-semibold">Target Repository Name</Label>
                 <Input
                   value={repoName}
                   onChange={(e) => setRepoName(e.target.value.replace(/[^A-Za-z0-9._-]/g, "-"))}
                   placeholder="my-portfolio"
-                  className="mt-1"
+                  className="mt-1 font-mono text-xs"
                 />
-              </div>
-
-              <div>
-                <Label>GitHub Personal Access Token (repo scope)</Label>
-                <Input
-                  type="password"
-                  value={githubToken}
-                  onChange={(e) => setGithubToken(e.target.value)}
-                  placeholder={session.token ? "Using signed-in session token" : "ghp_..."}
-                  className="mt-1"
-                />
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Get a classic token with <strong>repo</strong> permissions at{" "}
-                  <a
-                    href="https://github.com/settings/tokens/new?scopes=repo&description=Folio"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="underline text-primary"
-                  >
-                    github.com/settings/tokens
-                  </a>
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  If this repository doesn't exist, we will create it automatically for you.
                 </p>
               </div>
+
+              {!session.token?.startsWith("ghp_") && session.provider !== "github" && (
+                <div>
+                  <Label className="text-xs font-semibold">
+                    Personal Access Token (optional if using GitHub Auth above)
+                  </Label>
+                  <Input
+                    type="password"
+                    value={githubToken}
+                    onChange={(e) => setGithubToken(e.target.value)}
+                    placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
+                    className="mt-1 font-mono text-xs"
+                  />
+                </div>
+              )}
             </div>
 
-            <div className="mt-6 flex justify-end gap-2">
+            <div className="flex justify-end gap-2 border-t pt-4">
               <Button variant="ghost" onClick={() => setDeployOpen(false)}>
                 Cancel
               </Button>
               <Button variant="block" onClick={handleDeployLive} disabled={busy}>
                 {busy ? (
-                  <Loader2 className="mr-2 size-4 animate-spin" />
+                  <>
+                    <Loader2 className="mr-2 size-4 animate-spin" />
+                    Publishing...
+                  </>
                 ) : (
-                  <Upload className="mr-2 size-4" />
+                  <>
+                    <Upload className="mr-2 size-4" />
+                    Publish to GitHub Pages
+                  </>
                 )}
-                Publish Now
               </Button>
             </div>
           </div>

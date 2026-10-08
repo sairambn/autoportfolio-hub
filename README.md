@@ -1,8 +1,8 @@
-# Folio — Portfolio builder (GitHub-only)
+# Folio — Portfolio Builder
 
-Build a portfolio in the browser, save drafts locally, publish a static site to **your** GitHub repo + Pages.
+Build a portfolio in the browser, save drafts locally and in Cloud Firestore, and publish a static site to **your** GitHub repo + Pages.
 
-**No Supabase. No central database.** Works for thousands of users because we only run OAuth + static hosting.
+**Firebase Auth + Cloud Firestore + GitHub Integration.** Works seamlessly for thousands of users with real-time sync and direct static publishing.
 
 **Live:** [portfoliobuilder-three.vercel.app](https://portfoliobuilder-three.vercel.app)
 

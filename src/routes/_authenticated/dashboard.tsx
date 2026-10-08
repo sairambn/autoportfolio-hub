@@ -5,7 +5,7 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({
     meta: [
       { title: "User Dashboard — Folio" },
-      { name: "description", content: "Manage your profile and portfolios in Cloud Firestore." },
+      { name: "description", content: "Manage your profile, projects, and portfolios." },
     ],
   }),
   component: UserDashboard,

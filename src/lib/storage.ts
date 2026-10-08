@@ -49,11 +49,71 @@ export function listPortfolios(login: string): PortfolioRecord[] {
 }
 
 export function getPortfolio(login: string, id: string): PortfolioRecord | null {
-  return readAll(login).find((p) => p.id === id) ?? null;
+  const direct = readAll(login).find((p) => p.id === id);
+  if (direct) return direct;
+
+  if (typeof window !== "undefined" && window.localStorage) {
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith("folio_portfolios_")) {
+          const raw = localStorage.getItem(k);
+          if (raw) {
+            const list = JSON.parse(raw) as PortfolioRecord[];
+            if (Array.isArray(list)) {
+              const match = list.find((p) => p.id === id);
+              if (match) return match;
+            }
+          }
+        }
+      }
+    } catch {
+      // ignore parsing error
+    }
+  }
+
+  return null;
 }
 
 export function getBySlug(login: string, slug: string): PortfolioRecord | null {
-  return readAll(login).find((p) => p.slug === slug) ?? null;
+  if (!slug) return null;
+
+  // 1. Direct login check
+  if (login) {
+    const direct = readAll(login).find((p) => p.slug === slug || p.id === slug);
+    if (direct) return direct;
+  }
+
+  // 2. Check guest & default user keys
+  for (const fallbackUser of ["guest", "user"]) {
+    if (fallbackUser !== login) {
+      const match = readAll(fallbackUser).find((p) => p.slug === slug || p.id === slug);
+      if (match) return match;
+    }
+  }
+
+  // 3. Scan all portfolio keys in localStorage
+  if (typeof window !== "undefined" && window.localStorage) {
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith("folio_portfolios_")) {
+          const raw = localStorage.getItem(k);
+          if (raw) {
+            const list = JSON.parse(raw) as PortfolioRecord[];
+            if (Array.isArray(list)) {
+              const match = list.find((p) => p.slug === slug || p.id === slug);
+              if (match) return match;
+            }
+          }
+        }
+      }
+    } catch {
+      // ignore JSON parse error
+    }
+  }
+
+  return null;
 }
 
 export function createPortfolio(login: string, opts?: { title?: string }): PortfolioRecord {

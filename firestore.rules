@@ -28,9 +28,10 @@ service cloud.firestore {
       allow update: if isOwner(userId) && isValidId(userId);
       allow delete: if false;
 
-      // User's private portfolios subcollection
+      // User's portfolios subcollection
       match /portfolios/{portfolioId} {
-        allow get, delete: if isOwner(userId) && isValidId(portfolioId);
+        allow get: if (isOwner(userId) || resource.data.published == true) && isValidId(portfolioId);
+        allow delete: if isOwner(userId) && isValidId(portfolioId);
         allow list: if isOwner(userId);
         allow create, update: if isOwner(userId) && isValidId(portfolioId);
       }

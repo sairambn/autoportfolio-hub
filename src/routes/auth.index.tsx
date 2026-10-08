@@ -1,20 +1,33 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   AlertCircle,
   ArrowRight,
   Check,
   Copy,
-  Github,
   KeyRound,
   Loader2,
+  Lock,
+  LogIn,
+  Mail,
   ShieldCheck,
+  Sparkles,
+  User as UserIcon,
+  UserPlus,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { loadSession, saveSession, signInWithToken } from "@/lib/auth";
-import { auth, onAuthStateChanged, signInWithGithub, signInWithGoogle } from "@/lib/firebase";
+import { GithubFirebaseAuth } from "@/components/GithubFirebaseAuth";
+import { loadSession, saveSession } from "@/lib/auth";
+import {
+  auth,
+  onAuthStateChanged,
+  signInWithEmail,
+  signInWithGoogle,
+  signInWithTestAccount,
+  signUpWithEmail,
+} from "@/lib/firebase";
 
 export const Route = createFileRoute("/auth/")({
   head: () => ({
@@ -22,7 +35,8 @@ export const Route = createFileRoute("/auth/")({
       { title: "Sign in — Folio" },
       {
         name: "description",
-        content: "Sign in with Google or GitHub to create, manage, and publish your portfolio.",
+        content:
+          "Sign in with Google or GitHub via Firebase Auth to create, manage, and publish your portfolio.",
       },
       { property: "og:title", content: "Sign in — Folio" },
     ],
@@ -55,9 +69,13 @@ function GoogleIcon({ className }: { className?: string }) {
 
 function AuthPage() {
   const nav = useNavigate();
-  const [busyProvider, setBusyProvider] = useState<"google" | "github" | "token" | null>(null);
-  const [token, setToken] = useState("");
-  const [showToken, setShowToken] = useState(false);
+  const [busyGoogle, setBusyGoogle] = useState(false);
+  const [busyEmail, setBusyEmail] = useState(false);
+  const [busyTest, setBusyTest] = useState(false);
+  const [isRegister, setIsRegister] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [displayName, setDisplayName] = useState("");
   const [showConfigHelp, setShowConfigHelp] = useState(false);
   const [copiedUrl, setCopiedUrl] = useState<string | null>(null);
 
@@ -65,40 +83,111 @@ function AuthPage() {
   const googleCallbackUrl = `${currentOrigin}/api/auth/google`;
   const githubCallbackUrl = `${currentOrigin}/api/auth/github`;
 
-  useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (user) => {
-      if (user) {
-        saveSession({
-          token: user.uid,
-          user: {
-            id:
-              Math.abs(
-                user.uid.split("").reduce((acc, c) => ((acc << 5) - acc + c.charCodeAt(0)) | 0, 0),
-              ) || 1,
-            login: user.email?.split("@")[0] || "user",
-            name: user.displayName || user.email?.split("@")[0] || "User",
-            avatar_url: user.photoURL || "",
-            html_url: user.email ? `mailto:${user.email}` : "",
-            email: user.email || null,
-            provider: "google",
-          },
-          provider: "google",
-          expiresAt: Date.now() + 1000 * 60 * 60 * 24 * 30,
-        });
-        nav({ to: "/dashboard" });
+  const handleTestAccountLogin = async () => {
+    setBusyTest(true);
+    try {
+      let uid = "test_user_demo_101";
+      let photoURL = "";
+      let displayName = "Test Developer";
+      try {
+        const user = await signInWithTestAccount();
+        uid = user.uid;
+        if (user.photoURL) photoURL = user.photoURL;
+        if (user.displayName) displayName = user.displayName;
+      } catch (fbErr) {
+        console.warn("Firebase Auth test signin fallback to local demo session:", fbErr);
       }
-    });
 
-    const s = loadSession();
-    if (s && s.user.login !== "guest" && s.token) {
+      saveSession({
+        token: uid,
+        user: {
+          id:
+            Math.abs(
+              uid.split("").reduce((acc, c) => ((acc << 5) - acc + c.charCodeAt(0)) | 0, 0),
+            ) || 101,
+          login: "testuser",
+          name: displayName,
+          avatar_url: photoURL || `https://api.dicebear.com/7.x/identicon/svg?seed=${uid}`,
+          html_url: "mailto:test@folio.dev",
+          email: "test@folio.dev",
+          provider: "password",
+        },
+        provider: "password",
+        expiresAt: Date.now() + 1000 * 60 * 60 * 24 * 30,
+      });
+      toast.success("Signed in successfully with Test Account!");
       nav({ to: "/dashboard" });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Test login failed";
+      toast.error(msg);
+    } finally {
+      setBusyTest(false);
     }
+  };
 
-    return () => unsub();
-  }, [nav]);
+  const handleEmailAuth = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email.trim() || !password) {
+      toast.error("Please enter both email and password");
+      return;
+    }
+    setBusyEmail(true);
+    try {
+      const user = isRegister
+        ? await signUpWithEmail(email, password, displayName.trim())
+        : await signInWithEmail(email, password);
 
-  async function handleGoogleSignIn() {
-    setBusyProvider("google");
+      saveSession({
+        token: user.uid,
+        user: {
+          id:
+            Math.abs(
+              user.uid.split("").reduce((acc, c) => ((acc << 5) - acc + c.charCodeAt(0)) | 0, 0),
+            ) || 1,
+          login: user.email?.split("@")[0] || "user",
+          name: user.displayName || user.email?.split("@")[0] || "Developer",
+          avatar_url:
+            user.photoURL || `https://api.dicebear.com/7.x/identicon/svg?seed=${user.uid}`,
+          html_url: user.email ? `mailto:${user.email}` : "",
+          email: user.email || null,
+          provider: "password",
+        },
+        provider: "password",
+        expiresAt: Date.now() + 1000 * 60 * 60 * 24 * 30,
+      });
+
+      toast.success(isRegister ? "Account created successfully!" : "Signed in successfully!");
+      nav({ to: "/dashboard" });
+    } catch (err: unknown) {
+      const error = err as { code?: string; message?: string };
+      if (
+        error?.code === "auth/invalid-credential" ||
+        error?.code === "auth/user-not-found" ||
+        error?.code === "auth/wrong-password"
+      ) {
+        toast.error("Invalid email or password. You can also use the 1-Click Test Login below!");
+      } else if (error?.code === "auth/email-already-in-use") {
+        toast.error("An account with this email already exists. Try signing in.");
+        setIsRegister(false);
+      } else if (error?.code === "auth/weak-password") {
+        toast.error("Password must be at least 6 characters.");
+      } else {
+        toast.error(error?.message || "Authentication failed");
+      }
+    } finally {
+      setBusyEmail(false);
+    }
+  };
+
+  const fillTestCredentials = () => {
+    setEmail("test@folio.dev");
+    setPassword("TestPassword123!");
+    setIsRegister(false);
+    toast.info("Filled test credentials: test@folio.dev");
+  };
+
+  const handleGoogleSignIn = useCallback(async () => {
+    setBusyGoogle(true);
     try {
       const user = await signInWithGoogle();
       saveSession({
@@ -118,7 +207,7 @@ function AuthPage() {
         provider: "google",
         expiresAt: Date.now() + 1000 * 60 * 60 * 24 * 30,
       });
-      toast.success(`Welcome, ${user.displayName || user.email}!`);
+      toast.success(`Welcome, ${user.displayName || "User"}!`);
       nav({ to: "/dashboard" });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Google sign-in failed";
@@ -128,58 +217,54 @@ function AuthPage() {
         toast.error(msg);
       }
     } finally {
-      setBusyProvider(null);
+      setBusyGoogle(false);
     }
-  }
+  }, [nav]);
 
-  async function handleGithubSignIn() {
-    setBusyProvider("github");
-    try {
-      const user = await signInWithGithub();
-      saveSession({
-        token: user.uid,
-        user: {
-          id:
-            Math.abs(
-              user.uid.split("").reduce((acc, c) => ((acc << 5) - acc + c.charCodeAt(0)) | 0, 0),
-            ) || 1,
-          login: user.email?.split("@")[0] || "user",
-          name: user.displayName || user.email?.split("@")[0] || "Developer",
-          avatar_url: user.photoURL || "",
-          html_url: user.email ? `mailto:${user.email}` : "",
-          email: user.email || null,
-          provider: "github",
-        },
-        provider: "github",
-        expiresAt: Date.now() + 1000 * 60 * 60 * 24 * 30,
-      });
-      toast.success(`Welcome, ${user.displayName || "Developer"}!`);
-      nav({ to: "/dashboard" });
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "GitHub sign-in failed";
-      if (msg.includes("auth/popup-closed-by-user")) {
-        toast.info("GitHub sign-in window closed.");
-      } else {
-        toast.error(msg);
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        const s = loadSession();
+        if (!s || s.user.login === "guest") {
+          saveSession({
+            token: user.uid,
+            user: {
+              id:
+                Math.abs(
+                  user.uid
+                    .split("")
+                    .reduce((acc, c) => ((acc << 5) - acc + c.charCodeAt(0)) | 0, 0),
+                ) || 1,
+              login: user.email?.split("@")[0] || "user",
+              name: user.displayName || user.email?.split("@")[0] || "User",
+              avatar_url: user.photoURL || "",
+              html_url: user.email ? `mailto:${user.email}` : "",
+              email: user.email || null,
+              provider: user.providerData?.[0]?.providerId === "github.com" ? "github" : "google",
+            },
+            provider: user.providerData?.[0]?.providerId === "github.com" ? "github" : "google",
+            expiresAt: Date.now() + 1000 * 60 * 60 * 24 * 30,
+          });
+        }
+        nav({ to: "/dashboard" });
       }
-    } finally {
-      setBusyProvider(null);
-    }
-  }
+    });
 
-  async function handleTokenSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setBusyProvider("token");
-    try {
-      const user = await signInWithToken(token);
-      toast.success(`Signed in as @${user.login}`);
+    const s = loadSession();
+    if (s && s.user.login !== "guest" && s.token) {
       nav({ to: "/dashboard" });
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Sign-in failed");
-    } finally {
-      setBusyProvider(null);
     }
-  }
+
+    if (typeof window !== "undefined") {
+      const sp = new URLSearchParams(window.location.search);
+      if (sp.get("auto") === "true" && sp.get("provider") === "google") {
+        window.history.replaceState({}, "", "/auth");
+        handleGoogleSignIn();
+      }
+    }
+
+    return () => unsub();
+  }, [nav, handleGoogleSignIn]);
 
   function copyToClipboard(text: string, key: string) {
     navigator.clipboard.writeText(text);
@@ -190,200 +275,271 @@ function AuthPage() {
 
   return (
     <div className="grid min-h-screen place-items-center grain px-4 py-12">
-      <div className="block-card w-full max-w-md p-8">
-        <div className="flex items-center justify-between">
-          <Link to="/" className="font-display text-2xl font-black italic">
-            Folio.
-          </Link>
-          <div className="flex items-center gap-1.5 rounded-full border-2 border-ink bg-accent px-2.5 py-0.5 text-xs font-bold uppercase tracking-wider text-accent-foreground">
-            <ShieldCheck className="size-3.5" />
-            <span>Secure Sign In</span>
+      <div className="w-full max-w-lg space-y-6">
+        {/* Main Card */}
+        <div className="block-card p-8 space-y-6">
+          <div className="flex items-center justify-between">
+            <Link to="/" className="font-display text-2xl font-black italic">
+              Folio.
+            </Link>
+            <div className="flex items-center gap-1.5 rounded-full border-2 border-ink bg-accent px-2.5 py-0.5 text-xs font-bold uppercase tracking-wider text-accent-foreground">
+              <ShieldCheck className="size-3.5" />
+              <span>Firebase Auth</span>
+            </div>
           </div>
-        </div>
 
-        <h1 className="mt-6 text-4xl font-black tracking-tight">Sign in to Folio</h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Authenticate with your real Google or GitHub account to sync your profile and portfolios
-          to Cloud Firestore.
-        </p>
+          <div>
+            <h1 className="text-3xl font-black tracking-tight">Sign in & Connect</h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Authenticate to create, customize, and publish your live portfolios directly to GitHub
+              Pages.
+            </p>
+          </div>
 
-        {/* Primary OAuth Actions */}
-        <div className="mt-8 space-y-3.5">
-          {/* Google Button */}
+          {/* Quick Test Login Box */}
+          <div className="rounded-xl border-2 border-primary/40 bg-primary/5 p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-primary">
+                <Sparkles className="size-3.5" />
+                <span>Test Account (Instant Access)</span>
+              </div>
+              <span className="rounded bg-primary/10 px-2 py-0.5 text-[10px] font-mono font-bold text-primary">
+                1-Click Login
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 text-xs font-mono bg-background/80 rounded-lg p-2.5 border border-primary/20">
+              <div>
+                <span className="text-[10px] uppercase text-muted-foreground block font-sans font-medium">
+                  Test Email
+                </span>
+                <span className="font-semibold select-all text-foreground">test@folio.dev</span>
+              </div>
+              <div>
+                <span className="text-[10px] uppercase text-muted-foreground block font-sans font-medium">
+                  Password
+                </span>
+                <span className="font-semibold select-all text-foreground">TestPassword123!</span>
+              </div>
+            </div>
+
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                onClick={handleTestAccountLogin}
+                disabled={busyTest}
+                className="flex-1 font-bold shadow-sm"
+                size="sm"
+              >
+                {busyTest ? (
+                  <Loader2 className="size-4 animate-spin mr-1.5" />
+                ) : (
+                  <LogIn className="size-4 mr-1.5" />
+                )}
+                Sign In as Test User
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={fillTestCredentials}
+                size="sm"
+                className="text-xs"
+              >
+                Auto-fill
+              </Button>
+            </div>
+          </div>
+
+          {/* Email & Password Form */}
+          <form
+            onSubmit={handleEmailAuth}
+            className="space-y-3 rounded-xl border-2 border-ink/20 bg-card p-4"
+          >
+            <div className="flex items-center justify-between border-b pb-2">
+              <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                {isRegister ? "Create Firebase Account" : "Sign in with Email"}
+              </span>
+              <button
+                type="button"
+                onClick={() => setIsRegister((v) => !v)}
+                className="text-xs font-semibold text-primary underline"
+              >
+                {isRegister ? "Have an account? Sign in" : "Need an account? Register"}
+              </button>
+            </div>
+
+            {isRegister && (
+              <div className="space-y-1">
+                <label className="text-xs font-medium">Your Name</label>
+                <div className="relative">
+                  <UserIcon className="absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
+                  <Input
+                    type="text"
+                    placeholder="e.g. Alex Rivera"
+                    value={displayName}
+                    onChange={(e) => setDisplayName(e.target.value)}
+                    className="pl-9 h-9 text-xs"
+                  />
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-1">
+              <label className="text-xs font-medium">Email Address</label>
+              <div className="relative">
+                <Mail className="absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
+                <Input
+                  type="email"
+                  required
+                  placeholder="you@domain.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="pl-9 h-9 text-xs"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-medium">Password</label>
+              <div className="relative">
+                <Lock className="absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
+                <Input
+                  type="password"
+                  required
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="pl-9 h-9 text-xs"
+                />
+              </div>
+            </div>
+
+            <Button
+              type="submit"
+              disabled={busyEmail}
+              className="w-full font-bold h-9 text-xs mt-2"
+            >
+              {busyEmail ? (
+                <Loader2 className="size-4 animate-spin mr-1.5" />
+              ) : isRegister ? (
+                <UserPlus className="size-4 mr-1.5" />
+              ) : (
+                <LogIn className="size-4 mr-1.5" />
+              )}
+              {isRegister ? "Create Account" : "Sign In with Email"}
+            </Button>
+          </form>
+
+          {/* Social / OAuth Connectors */}
+          <div className="relative my-4 text-center text-xs uppercase tracking-widest text-muted-foreground">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-ink/20" />
+            </div>
+            <span className="relative bg-card px-2">or connect via GitHub / Google</span>
+          </div>
+
+          {/* GitHub Auth Component via Firebase Auth */}
+          <GithubFirebaseAuth
+            mode="card"
+            title="GitHub Account & Publishing Access"
+            description="Authorize via Firebase Auth with repository scopes to automate live deployments to GitHub Pages."
+            onAuthSuccess={() => nav({ to: "/dashboard" })}
+          />
+
+          {/* Google Alternative */}
+          <div className="relative my-4 text-center text-xs uppercase tracking-widest text-muted-foreground">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-ink/20" />
+            </div>
+            <span className="relative bg-card px-2">or sign in with Google</span>
+          </div>
+
           <button
             type="button"
             onClick={handleGoogleSignIn}
-            disabled={busyProvider !== null}
+            disabled={busyGoogle}
             className="group relative flex w-full items-center justify-center gap-3 rounded-lg border-2 border-ink bg-white px-5 py-3.5 text-sm font-bold text-ink shadow-[4px_4px_0_0_oklch(0.2_0.02_60)] transition-all hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0_0_oklch(0.2_0.02_60)] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none disabled:opacity-50"
           >
-            {busyProvider === "google" ? (
+            {busyGoogle ? (
               <Loader2 className="size-5 animate-spin text-muted-foreground" />
             ) : (
               <GoogleIcon className="size-5 shrink-0" />
             )}
-            <span>
-              {busyProvider === "google" ? "Opening Google Sign-In…" : "Sign in with Google"}
-            </span>
+            <span>{busyGoogle ? "Opening Google Sign-In…" : "Sign in with Google"}</span>
           </button>
 
-          {/* GitHub Button */}
-          <button
-            type="button"
-            onClick={handleGithubSignIn}
-            disabled={busyProvider !== null}
-            className="group relative flex w-full items-center justify-center gap-3 rounded-lg border-2 border-ink bg-ink px-5 py-3.5 text-sm font-bold text-white shadow-[4px_4px_0_0_oklch(0.2_0.02_60)] transition-all hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0_0_oklch(0.2_0.02_60)] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none disabled:opacity-50"
-          >
-            {busyProvider === "github" ? (
-              <Loader2 className="size-5 animate-spin text-white/70" />
-            ) : (
-              <Github className="size-5 shrink-0" />
-            )}
-            <span>
-              {busyProvider === "github" ? "Opening GitHub Sign-In…" : "Sign in with GitHub"}
-            </span>
-          </button>
-        </div>
-
-        {/* Token or Alternative Form */}
-        <div className="relative my-6 text-center text-xs uppercase tracking-widest text-muted-foreground">
-          <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-ink/20" />
-          </div>
-          <span className="relative bg-card px-2">or personal token</span>
-        </div>
-
-        {!showToken ? (
-          <Button
-            variant="ghost"
-            className="w-full border border-ink/30 text-xs font-semibold"
-            onClick={() => setShowToken(true)}
-            disabled={busyProvider !== null}
-          >
-            <KeyRound className="mr-2 size-3.5" /> Sign in with GitHub Personal Access Token
-          </Button>
-        ) : (
-          <form
-            onSubmit={handleTokenSubmit}
-            className="space-y-3 rounded-lg border border-ink bg-muted/20 p-4"
-          >
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold">GitHub Personal Token</span>
-              <button
-                type="button"
-                onClick={() => setShowToken(false)}
-                className="text-xs text-muted-foreground underline hover:text-foreground"
-              >
-                Hide
-              </button>
-            </div>
-            <Input
-              type="password"
-              autoComplete="off"
-              placeholder="ghp_… or github_pat_…"
-              value={token}
-              onChange={(e) => setToken(e.target.value)}
-              required
-            />
-            <p className="text-xs text-muted-foreground">
-              Create a token at{" "}
-              <a
-                className="font-medium underline"
-                href="https://github.com/settings/tokens/new?scopes=public_repo,read:user&description=Folio"
-                target="_blank"
-                rel="noreferrer"
-              >
-                github.com/settings/tokens
-              </a>{" "}
-              with <code>public_repo</code> and <code>read:user</code> scopes.
-            </p>
-            <Button
-              variant="block"
-              className="w-full"
-              type="submit"
-              disabled={busyProvider === "token" || !token.trim()}
+          {/* OAuth Configuration Details */}
+          <div className="border-t border-ink/10 pt-4">
+            <button
+              type="button"
+              onClick={() => setShowConfigHelp((v) => !v)}
+              className="flex w-full items-center justify-between text-xs text-muted-foreground hover:text-foreground"
             >
-              {busyProvider === "token" ? (
-                <>
-                  <Loader2 className="mr-2 size-4 animate-spin" /> Verifying…
-                </>
-              ) : (
-                "Sign in with token"
-              )}
-            </Button>
-          </form>
-        )}
+              <span className="flex items-center gap-1.5 font-medium">
+                <AlertCircle className="size-3.5" />
+                <span>OAuth & Callback details</span>
+              </span>
+              <span className="text-xs font-bold">{showConfigHelp ? "Hide" : "Show"}</span>
+            </button>
 
-        {/* OAuth Configuration Details */}
-        <div className="mt-6 border-t border-ink/10 pt-4">
-          <button
-            type="button"
-            onClick={() => setShowConfigHelp((v) => !v)}
-            className="flex w-full items-center justify-between text-xs text-muted-foreground hover:text-foreground"
-          >
-            <span className="flex items-center gap-1.5 font-medium">
-              <AlertCircle className="size-3.5" />
-              <span>OAuth & Firebase details</span>
-            </span>
-            <span className="text-xs font-bold">{showConfigHelp ? "Hide" : "Show"}</span>
-          </button>
-
-          {showConfigHelp && (
-            <div className="mt-3 space-y-3 rounded-lg border border-ink/20 bg-muted/30 p-3 text-xs text-muted-foreground">
-              <p>
-                Firebase Authentication & Cloud Firestore are active. For custom domain redirects,
-                add these callback endpoints:
-              </p>
-              <div className="space-y-2 font-mono">
-                <div>
-                  <span className="font-semibold text-foreground">Google Callback URI:</span>
-                  <div className="mt-1 flex items-center gap-1 rounded bg-card p-1.5 border">
-                    <span className="truncate flex-1 select-all">{googleCallbackUrl}</span>
-                    <button
-                      type="button"
-                      onClick={() => copyToClipboard(googleCallbackUrl, "google")}
-                      className="p-1 hover:text-foreground"
-                      title="Copy URL"
-                    >
-                      {copiedUrl === "google" ? (
-                        <Check className="size-3 text-primary" />
-                      ) : (
-                        <Copy className="size-3" />
-                      )}
-                    </button>
+            {showConfigHelp && (
+              <div className="mt-3 space-y-3 rounded-lg border border-ink/20 bg-muted/30 p-3 text-xs text-muted-foreground">
+                <p>
+                  Authentication and live deployment services are active. For custom domain
+                  redirects, add these callback endpoints:
+                </p>
+                <div className="space-y-2 font-mono">
+                  <div>
+                    <span className="font-semibold text-foreground">Google Callback URI:</span>
+                    <div className="mt-1 flex items-center gap-1 rounded bg-card p-1.5 border">
+                      <span className="truncate flex-1 select-all">{googleCallbackUrl}</span>
+                      <button
+                        type="button"
+                        onClick={() => copyToClipboard(googleCallbackUrl, "google")}
+                        className="p-1 hover:text-foreground"
+                        title="Copy URL"
+                      >
+                        {copiedUrl === "google" ? (
+                          <Check className="size-3 text-primary" />
+                        ) : (
+                          <Copy className="size-3" />
+                        )}
+                      </button>
+                    </div>
                   </div>
-                </div>
 
-                <div>
-                  <span className="font-semibold text-foreground">GitHub Callback URI:</span>
-                  <div className="mt-1 flex items-center gap-1 rounded bg-card p-1.5 border">
-                    <span className="truncate flex-1 select-all">{githubCallbackUrl}</span>
-                    <button
-                      type="button"
-                      onClick={() => copyToClipboard(githubCallbackUrl, "github")}
-                      className="p-1 hover:text-foreground"
-                      title="Copy URL"
-                    >
-                      {copiedUrl === "github" ? (
-                        <Check className="size-3 text-primary" />
-                      ) : (
-                        <Copy className="size-3" />
-                      )}
-                    </button>
+                  <div>
+                    <span className="font-semibold text-foreground">GitHub Callback URI:</span>
+                    <div className="mt-1 flex items-center gap-1 rounded bg-card p-1.5 border">
+                      <span className="truncate flex-1 select-all">{githubCallbackUrl}</span>
+                      <button
+                        type="button"
+                        onClick={() => copyToClipboard(githubCallbackUrl, "github")}
+                        className="p-1 hover:text-foreground"
+                        title="Copy URL"
+                      >
+                        {copiedUrl === "github" ? (
+                          <Check className="size-3 text-primary" />
+                        ) : (
+                          <Copy className="size-3" />
+                        )}
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
 
-        {/* Guest Continue */}
-        <div className="mt-4 text-center">
-          <Link
-            to="/create"
-            className="inline-flex items-center gap-1 text-sm font-semibold text-primary underline underline-offset-4 hover:text-primary/80"
-          >
-            Continue as Guest without account <ArrowRight className="size-3.5" />
-          </Link>
+          {/* Guest Continue */}
+          <div className="text-center">
+            <Link
+              to="/create"
+              className="inline-flex items-center gap-1 text-sm font-semibold text-primary underline underline-offset-4 hover:text-primary/80"
+            >
+              Continue as Guest without account <ArrowRight className="size-3.5" />
+            </Link>
+          </div>
         </div>
       </div>
     </div>

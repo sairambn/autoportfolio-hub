@@ -32,6 +32,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PortfolioView } from "@/components/PortfolioView";
+import { LivePortfolioPreview } from "@/components/LivePortfolioPreview";
 import {
   defaultContent,
   defaultSections,
@@ -235,7 +236,7 @@ export function ProfessionalDetailsForm({
     content.name ? `${content.name} — Portfolio` : "Professional Portfolio",
   );
   const [activeTab, setActiveTab] = useState<
-    "bio" | "experience" | "education" | "skills" | "projects" | "theme"
+    "bio" | "experience" | "education" | "skills" | "projects" | "theme" | "preview"
   >("bio");
   const [newSkill, setNewSkill] = useState("");
   const [busy, setBusy] = useState(false);
@@ -545,7 +546,7 @@ export function ProfessionalDetailsForm({
             onValueChange={(v) => setActiveTab(v as typeof activeTab)}
             className="w-full"
           >
-            <TabsList className="grid w-full grid-cols-3 border border-ink bg-muted/40 p-1 sm:grid-cols-6">
+            <TabsList className="grid w-full grid-cols-3 border border-ink bg-muted/40 p-1 sm:grid-cols-7">
               <TabsTrigger value="bio" className="text-xs font-bold">
                 <User className="mr-1.5 size-3.5" /> Bio & Info
               </TabsTrigger>
@@ -563,6 +564,9 @@ export function ProfessionalDetailsForm({
               </TabsTrigger>
               <TabsTrigger value="theme" className="text-xs font-bold">
                 <Layout className="mr-1.5 size-3.5" /> Theme
+              </TabsTrigger>
+              <TabsTrigger value="preview" className="text-xs font-bold lg:hidden">
+                <Eye className="mr-1.5 size-3.5 text-primary" /> Live Preview
               </TabsTrigger>
             </TabsList>
 
@@ -1103,6 +1107,24 @@ export function ProfessionalDetailsForm({
                 </div>
               </div>
             </TabsContent>
+
+            {/* Tab 7: Mobile Live Preview */}
+            <TabsContent value="preview" className="mt-6 lg:hidden">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-muted-foreground">
+                    Live updates as you edit fields
+                  </span>
+                </div>
+                <LivePortfolioPreview
+                  content={content}
+                  theme={theme}
+                  sections={sections}
+                  onThemeChange={setTheme}
+                  height="h-[560px]"
+                />
+              </div>
+            </TabsContent>
           </Tabs>
 
           {/* Action Footer */}
@@ -1140,42 +1162,15 @@ export function ProfessionalDetailsForm({
       </div>
 
       {/* Right: Live Interactive Portfolio Preview */}
-      <div className="hidden w-full max-w-md flex-col lg:flex xl:max-w-lg">
-        <div className="sticky top-6 rounded-xl border-2 border-ink bg-card p-4 shadow-[4px_4px_0_0_oklch(0.2_0.02_60)]">
-          <div className="mb-3 flex items-center justify-between border-b border-ink/20 pb-2">
-            <div className="flex items-center gap-1.5 text-xs font-bold">
-              <Eye className="size-3.5 text-primary" />
-              <span>Live Generated Preview</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <button
-                type="button"
-                onClick={() => setPreviewDevice("desktop")}
-                className={`rounded px-2 py-0.5 text-xs font-bold ${
-                  previewDevice === "desktop" ? "bg-ink text-white" : "text-muted-foreground"
-                }`}
-              >
-                Desktop
-              </button>
-              <button
-                type="button"
-                onClick={() => setPreviewDevice("mobile")}
-                className={`rounded px-2 py-0.5 text-xs font-bold ${
-                  previewDevice === "mobile" ? "bg-ink text-white" : "text-muted-foreground"
-                }`}
-              >
-                Mobile
-              </button>
-            </div>
-          </div>
-
-          <div
-            className={`mx-auto overflow-y-auto rounded-lg border border-border bg-background transition-all ${
-              previewDevice === "mobile" ? "h-[580px] w-[320px] shadow-lg" : "h-[620px] w-full"
-            }`}
-          >
-            <PortfolioView content={content} theme={theme} sections={sections} />
-          </div>
+      <div className="hidden w-full max-w-lg flex-col lg:flex xl:max-w-xl">
+        <div className="sticky top-6">
+          <LivePortfolioPreview
+            content={content}
+            theme={theme}
+            sections={sections}
+            onThemeChange={setTheme}
+            height="h-[640px]"
+          />
         </div>
       </div>
 

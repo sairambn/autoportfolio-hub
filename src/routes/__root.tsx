@@ -84,9 +84,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Folio — Portfolio builder" },
+      { title: "Folio - Portfolio Builder" },
       {
         name: "description",
+        content: "Build a custom portfolio and publish it to GitHub automatically.",
+      },
+      { property: "og:title", content: "Folio - Portfolio Builder" },
+      {
+        property: "og:description",
         content: "Build a custom portfolio and publish it to GitHub automatically.",
       },
       { property: "og:type", content: "website" },
