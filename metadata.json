@@ -1,5 +1,6 @@
 {
   "name": "Folio - Portfolio Builder",
   "description": "Build a custom portfolio and publish it to GitHub automatically.",
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"],
   "capabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

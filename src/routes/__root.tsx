@@ -14,6 +14,7 @@ import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { Toaster } from "@/components/ui/sonner";
 import { FONTS } from "@/lib/portfolio";
+import { GeminiChatbot } from "@/components/GeminiChatbot";
 
 function NotFoundComponent() {
   return (
@@ -130,6 +131,7 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       <Outlet />
       <Toaster />
+      <GeminiChatbot mode="floating" />
     </QueryClientProvider>
   );
 }

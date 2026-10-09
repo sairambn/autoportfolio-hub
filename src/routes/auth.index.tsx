@@ -23,6 +23,10 @@ import { loadSession, saveSession } from "@/lib/auth";
 import {
   auth,
   onAuthStateChanged,
+  PRIMARY_ADMIN_EMAIL,
+  PRIMARY_ADMIN_USERNAME,
+  resolveUserDisplayName,
+  resolveUsername,
   signInWithEmail,
   signInWithGoogle,
   signInWithTestAccount,
@@ -88,7 +92,7 @@ function AuthPage() {
     try {
       let uid = "test_user_demo_101";
       let photoURL = "";
-      let displayName = "Test Developer";
+      let displayName = PRIMARY_ADMIN_USERNAME;
       try {
         const user = await signInWithTestAccount();
         uid = user.uid;
@@ -105,11 +109,11 @@ function AuthPage() {
             Math.abs(
               uid.split("").reduce((acc, c) => ((acc << 5) - acc + c.charCodeAt(0)) | 0, 0),
             ) || 101,
-          login: "testuser",
-          name: displayName,
+          login: PRIMARY_ADMIN_USERNAME,
+          name: displayName || PRIMARY_ADMIN_USERNAME,
           avatar_url: photoURL || `https://api.dicebear.com/7.x/identicon/svg?seed=${uid}`,
-          html_url: "mailto:test@folio.dev",
-          email: "test@folio.dev",
+          html_url: "mailto:bnsairam14@gmail.com",
+          email: "bnsairam14@gmail.com",
           provider: "password",
         },
         provider: "password",
@@ -137,6 +141,12 @@ function AuthPage() {
         ? await signUpWithEmail(email, password, displayName.trim())
         : await signInWithEmail(email, password);
 
+      const resolvedLogin = resolveUsername(user.email);
+      const resolvedName = resolveUserDisplayName(
+        user.email,
+        displayName.trim() || user.displayName,
+      );
+
       saveSession({
         token: user.uid,
         user: {
@@ -144,8 +154,8 @@ function AuthPage() {
             Math.abs(
               user.uid.split("").reduce((acc, c) => ((acc << 5) - acc + c.charCodeAt(0)) | 0, 0),
             ) || 1,
-          login: user.email?.split("@")[0] || "user",
-          name: user.displayName || user.email?.split("@")[0] || "Developer",
+          login: resolvedLogin,
+          name: resolvedName,
           avatar_url:
             user.photoURL || `https://api.dicebear.com/7.x/identicon/svg?seed=${user.uid}`,
           html_url: user.email ? `mailto:${user.email}` : "",
@@ -190,6 +200,8 @@ function AuthPage() {
     setBusyGoogle(true);
     try {
       const user = await signInWithGoogle();
+      const resolvedLogin = resolveUsername(user.email);
+      const resolvedName = resolveUserDisplayName(user.email, user.displayName);
       saveSession({
         token: user.uid,
         user: {
@@ -197,8 +209,8 @@ function AuthPage() {
             Math.abs(
               user.uid.split("").reduce((acc, c) => ((acc << 5) - acc + c.charCodeAt(0)) | 0, 0),
             ) || 1,
-          login: user.email?.split("@")[0] || "user",
-          name: user.displayName || user.email?.split("@")[0] || "User",
+          login: resolvedLogin,
+          name: resolvedName,
           avatar_url: user.photoURL || "",
           html_url: user.email ? `mailto:${user.email}` : "",
           email: user.email || null,
@@ -207,12 +219,18 @@ function AuthPage() {
         provider: "google",
         expiresAt: Date.now() + 1000 * 60 * 60 * 24 * 30,
       });
-      toast.success(`Welcome, ${user.displayName || "User"}!`);
+      toast.success(`Welcome, ${resolvedName}!`);
       nav({ to: "/dashboard" });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Google sign-in failed";
       if (msg.includes("auth/popup-closed-by-user")) {
         toast.info("Google sign-in window closed.");
+      } else if (msg.includes("auth/unauthorized-domain")) {
+        toast.error(
+          "Domain not in Firebase Authorized Domains. Use the 1-Click Test Login or Email/Password above to sign in immediately!",
+          { duration: 7000 },
+        );
+        setShowConfigHelp(true);
       } else {
         toast.error(msg);
       }
@@ -226,6 +244,8 @@ function AuthPage() {
       if (user) {
         const s = loadSession();
         if (!s || s.user.login === "guest") {
+          const resolvedLogin = resolveUsername(user.email);
+          const resolvedName = resolveUserDisplayName(user.email, user.displayName);
           saveSession({
             token: user.uid,
             user: {
@@ -235,8 +255,8 @@ function AuthPage() {
                     .split("")
                     .reduce((acc, c) => ((acc << 5) - acc + c.charCodeAt(0)) | 0, 0),
                 ) || 1,
-              login: user.email?.split("@")[0] || "user",
-              name: user.displayName || user.email?.split("@")[0] || "User",
+              login: resolvedLogin,
+              name: resolvedName,
               avatar_url: user.photoURL || "",
               html_url: user.email ? `mailto:${user.email}` : "",
               email: user.email || null,
@@ -289,75 +309,77 @@ function AuthPage() {
           </div>
 
           <div>
-            <h1 className="text-3xl font-black tracking-tight">Sign in & Connect</h1>
+            <h1 className="text-3xl font-black tracking-tight">Sign in to Folio</h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              Authenticate to create, customize, and publish your live portfolios directly to GitHub
-              Pages.
+              Sign in with your Google account to create, customize, and publish your student
+              portfolio website in under 5 minutes.
             </p>
           </div>
 
-          {/* Quick Test Login Box */}
-          <div className="rounded-xl border-2 border-primary/40 bg-primary/5 p-4 space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-primary">
-                <Sparkles className="size-3.5" />
-                <span>Test Account (Instant Access)</span>
-              </div>
-              <span className="rounded bg-primary/10 px-2 py-0.5 text-[10px] font-mono font-bold text-primary">
-                1-Click Login
-              </span>
-            </div>
+          {/* Primary Hero: 1-Click Google Sign In */}
+          <div className="space-y-2">
+            <button
+              type="button"
+              onClick={handleGoogleSignIn}
+              disabled={busyGoogle}
+              className="group relative flex w-full items-center justify-center gap-3 rounded-xl border-2 border-ink bg-white px-5 py-4 text-base font-bold text-ink shadow-[4px_4px_0_0_oklch(0.2_0.02_60)] transition-all hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0_0_oklch(0.2_0.02_60)] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none disabled:opacity-50"
+            >
+              {busyGoogle ? (
+                <Loader2 className="size-5 animate-spin text-muted-foreground" />
+              ) : (
+                <GoogleIcon className="size-5 shrink-0" />
+              )}
+              <span>{busyGoogle ? "Opening Google Sign-In…" : "Continue with Google"}</span>
+            </button>
+            <p className="text-center text-[11px] text-muted-foreground">
+              Recommended for students · Works with college or personal Gmail
+            </p>
+          </div>
 
-            <div className="grid grid-cols-2 gap-2 text-xs font-mono bg-background/80 rounded-lg p-2.5 border border-primary/20">
+          {/* 1-Click Student Demo Login */}
+          <div className="rounded-xl border border-primary/30 bg-primary/5 p-3 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2 text-xs">
+              <Sparkles className="size-4 text-primary shrink-0" />
               <div>
-                <span className="text-[10px] uppercase text-muted-foreground block font-sans font-medium">
-                  Test Email
-                </span>
-                <span className="font-semibold select-all text-foreground">test@folio.dev</span>
-              </div>
-              <div>
-                <span className="text-[10px] uppercase text-muted-foreground block font-sans font-medium">
-                  Password
-                </span>
-                <span className="font-semibold select-all text-foreground">TestPassword123!</span>
+                <span className="font-bold text-foreground">Lab Wi-Fi or Guest Mode?</span>
+                <p className="text-[11px] text-muted-foreground">
+                  Instant access without entering passwords.
+                </p>
               </div>
             </div>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={handleTestAccountLogin}
+              disabled={busyTest}
+              className="font-bold text-xs shrink-0 border-primary/40 bg-card hover:bg-primary hover:text-primary-foreground"
+            >
+              {busyTest ? (
+                <Loader2 className="size-3.5 animate-spin mr-1" />
+              ) : (
+                <LogIn className="size-3.5 mr-1" />
+              )}
+              Instant Demo
+            </Button>
+          </div>
 
-            <div className="flex gap-2">
-              <Button
-                type="button"
-                onClick={handleTestAccountLogin}
-                disabled={busyTest}
-                className="flex-1 font-bold shadow-sm"
-                size="sm"
-              >
-                {busyTest ? (
-                  <Loader2 className="size-4 animate-spin mr-1.5" />
-                ) : (
-                  <LogIn className="size-4 mr-1.5" />
-                )}
-                Sign In as Test User
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={fillTestCredentials}
-                size="sm"
-                className="text-xs"
-              >
-                Auto-fill
-              </Button>
+          {/* Divider */}
+          <div className="relative my-4 text-center text-xs uppercase tracking-widest text-muted-foreground">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-ink/15" />
             </div>
+            <span className="relative bg-card px-2">or sign in with email</span>
           </div>
 
           {/* Email & Password Form */}
           <form
             onSubmit={handleEmailAuth}
-            className="space-y-3 rounded-xl border-2 border-ink/20 bg-card p-4"
+            className="space-y-3 rounded-xl border border-ink/20 bg-muted/20 p-4"
           >
             <div className="flex items-center justify-between border-b pb-2">
               <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                {isRegister ? "Create Firebase Account" : "Sign in with Email"}
+                {isRegister ? "Create Account" : "Sign in with Email"}
               </span>
               <button
                 type="button"
@@ -430,43 +452,26 @@ function AuthPage() {
             </Button>
           </form>
 
-          {/* Social / OAuth Connectors */}
-          <div className="relative my-4 text-center text-xs uppercase tracking-widest text-muted-foreground">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-ink/20" />
-            </div>
-            <span className="relative bg-card px-2">or connect via GitHub / Google</span>
+          {/* Optional GitHub Section (Collapsed) */}
+          <div className="border-t border-ink/10 pt-4">
+            <details className="group">
+              <summary className="flex cursor-pointer items-center justify-between text-xs text-muted-foreground hover:text-foreground">
+                <span className="font-semibold flex items-center gap-1.5">
+                  <KeyRound className="size-3.5" />
+                  <span>Publishing to GitHub Pages? (Optional)</span>
+                </span>
+                <span className="text-[11px] group-open:rotate-180 transition-transform">▼</span>
+              </summary>
+              <div className="mt-3 pt-2">
+                <GithubFirebaseAuth
+                  mode="card"
+                  title="GitHub Publishing Access"
+                  description="Connect GitHub if you want to automatically publish your site to your own GitHub Pages repo."
+                  onAuthSuccess={() => nav({ to: "/dashboard" })}
+                />
+              </div>
+            </details>
           </div>
-
-          {/* GitHub Auth Component via Firebase Auth */}
-          <GithubFirebaseAuth
-            mode="card"
-            title="GitHub Account & Publishing Access"
-            description="Authorize via Firebase Auth with repository scopes to automate live deployments to GitHub Pages."
-            onAuthSuccess={() => nav({ to: "/dashboard" })}
-          />
-
-          {/* Google Alternative */}
-          <div className="relative my-4 text-center text-xs uppercase tracking-widest text-muted-foreground">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-ink/20" />
-            </div>
-            <span className="relative bg-card px-2">or sign in with Google</span>
-          </div>
-
-          <button
-            type="button"
-            onClick={handleGoogleSignIn}
-            disabled={busyGoogle}
-            className="group relative flex w-full items-center justify-center gap-3 rounded-lg border-2 border-ink bg-white px-5 py-3.5 text-sm font-bold text-ink shadow-[4px_4px_0_0_oklch(0.2_0.02_60)] transition-all hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0_0_oklch(0.2_0.02_60)] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none disabled:opacity-50"
-          >
-            {busyGoogle ? (
-              <Loader2 className="size-5 animate-spin text-muted-foreground" />
-            ) : (
-              <GoogleIcon className="size-5 shrink-0" />
-            )}
-            <span>{busyGoogle ? "Opening Google Sign-In…" : "Sign in with Google"}</span>
-          </button>
 
           {/* OAuth Configuration Details */}
           <div className="border-t border-ink/10 pt-4">
@@ -484,10 +489,55 @@ function AuthPage() {
 
             {showConfigHelp && (
               <div className="mt-3 space-y-3 rounded-lg border border-ink/20 bg-muted/30 p-3 text-xs text-muted-foreground">
-                <p>
-                  Authentication and live deployment services are active. For custom domain
-                  redirects, add these callback endpoints:
-                </p>
+                <div className="rounded border border-primary/30 bg-primary/5 p-2.5 space-y-1">
+                  <span className="font-bold text-foreground block">
+                    Firebase Authorized Domains Fix:
+                  </span>
+                  <p className="text-[11px]">
+                    If you see{" "}
+                    <code className="font-mono text-destructive">auth/unauthorized-domain</code>,
+                    add this domain in Firebase Console:
+                  </p>
+                  <div className="mt-1 flex items-center gap-1 rounded bg-card p-1.5 border font-mono">
+                    <span className="truncate flex-1 select-all font-semibold text-foreground">
+                      {typeof window !== "undefined"
+                        ? window.location.hostname
+                        : "portfoliobuilder-three.vercel.app"}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        copyToClipboard(
+                          typeof window !== "undefined"
+                            ? window.location.hostname
+                            : "portfoliobuilder-three.vercel.app",
+                          "domain",
+                        )
+                      }
+                      className="p-1 hover:text-foreground"
+                      title="Copy Domain"
+                    >
+                      {copiedUrl === "domain" ? (
+                        <Check className="size-3 text-primary" />
+                      ) : (
+                        <Copy className="size-3" />
+                      )}
+                    </button>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground pt-1">
+                    Steps: Click the link below, go to Authorized domains, and click "Add domain":
+                  </p>
+                  <a
+                    href="https://console.firebase.google.com/project/gen-lang-client-0792314276/authentication/settings"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-[11px] font-bold text-primary underline pt-0.5 hover:text-primary/80"
+                  >
+                    Open Firebase Console Settings <ArrowRight className="size-3" />
+                  </a>
+                </div>
+
+                <p>OAuth & callback endpoints:</p>
                 <div className="space-y-2 font-mono">
                   <div>
                     <span className="font-semibold text-foreground">Google Callback URI:</span>

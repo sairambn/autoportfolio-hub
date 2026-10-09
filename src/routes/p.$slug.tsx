@@ -1,7 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { Loader2 } from "lucide-react";
+import { ArrowLeft, Edit3, FileText, Loader2, Printer } from "lucide-react";
 import { PortfolioView } from "@/components/PortfolioView";
+import { ExportPdfModal } from "@/components/ExportPdfModal";
 import { useGithubRepos } from "@/hooks/use-github-repos";
 import { loadSession } from "@/lib/auth";
 import { auth, findPortfolioInFirestore, onAuthStateChanged } from "@/lib/firebase";
@@ -58,6 +59,7 @@ function PublicPortfolio() {
   });
 
   const [loading, setLoading] = useState<boolean>(!row);
+  const [pdfModalOpen, setPdfModalOpen] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -198,6 +200,50 @@ function PublicPortfolio() {
 
   const { content, theme, sections } = normalized;
   return (
-    <PortfolioView content={content} theme={theme} sections={sections} repos={repos.data ?? null} />
+    <>
+      {/* Floating Action Bar for Exporting PDF and Offline Viewing */}
+      <div className="no-print fixed top-4 right-4 z-40 flex items-center gap-2 rounded-full border-2 border-ink bg-card/95 p-1.5 shadow-[3px_3px_0_0_oklch(0.2_0.02_60)] backdrop-blur-md">
+        <Link
+          to="/dashboard"
+          className="flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold text-muted-foreground hover:bg-muted hover:text-foreground transition-all"
+        >
+          <ArrowLeft className="size-3.5" />
+          Dashboard
+        </Link>
+        <div className="h-4 w-px bg-border" />
+        <button
+          type="button"
+          onClick={() => setPdfModalOpen(true)}
+          className="flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-xs font-bold text-primary hover:bg-primary/20 transition-all shadow-2xs"
+          title="Export this portfolio as a PDF file for offline viewing or printing"
+        >
+          <FileText className="size-3.5" />
+          Export PDF
+        </button>
+      </div>
+
+      {/* Target Container for Rendering and PDF Capture */}
+      <div id="public-portfolio-view-target">
+        <PortfolioView
+          content={content}
+          theme={theme}
+          sections={sections}
+          repos={repos.data ?? null}
+        />
+      </div>
+
+      {/* PDF Export & Print Modal */}
+      <ExportPdfModal
+        open={pdfModalOpen}
+        onClose={() => setPdfModalOpen(false)}
+        title={row?.title || "Portfolio"}
+        slug={slug}
+        content={content}
+        theme={theme}
+        sections={sections}
+        repos={repos.data ?? null}
+        targetElementId="public-portfolio-view-target"
+      />
+    </>
   );
 }

@@ -22,6 +22,10 @@ import { Label } from "@/components/ui/label";
 import {
   auth,
   onAuthStateChanged,
+  PRIMARY_ADMIN_EMAIL,
+  PRIMARY_ADMIN_USERNAME,
+  resolveUserDisplayName,
+  resolveUsername,
   signInWithGithub,
   signOutUser,
   type GithubAuthResult,
@@ -97,8 +101,10 @@ export function GithubFirebaseAuth({
     try {
       const res = await signInWithGithub();
       const user = res.user;
-      const ghUsername =
+      const rawGh =
         res.githubUsername || user.displayName?.replace(/\s+/g, "").toLowerCase() || "developer";
+      const ghUsername = resolveUsername(user.email, rawGh);
+      const ghDisplayName = resolveUserDisplayName(user.email, user.displayName || ghUsername);
 
       // Compute safe numeric ID
       const numericId =
@@ -111,7 +117,7 @@ export function GithubFirebaseAuth({
         user: {
           id: numericId,
           login: ghUsername,
-          name: user.displayName || ghUsername,
+          name: ghDisplayName,
           avatar_url: user.photoURL || `https://github.com/${ghUsername}.png`,
           html_url: `https://github.com/${ghUsername}`,
           email: user.email || null,
@@ -129,6 +135,12 @@ export function GithubFirebaseAuth({
       const msg = err instanceof Error ? err.message : "GitHub authentication failed";
       if (msg.includes("auth/popup-closed-by-user")) {
         toast.info("GitHub sign-in popup was closed.");
+      } else if (msg.includes("auth/operation-not-allowed")) {
+        toast.info(
+          "GitHub OAuth is not configured on this Firebase instance. Switched to Personal Access Token mode so you can continue immediately!",
+          { duration: 7000 },
+        );
+        setShowPatInput(true);
       } else if (msg.includes("auth/popup-blocked") || msg.includes("popup-blocked")) {
         toast.error(
           "Browser blocked popup window. Please enable popups or use Personal Access Token below.",
@@ -136,10 +148,20 @@ export function GithubFirebaseAuth({
         setShowPatInput(true);
       } else if (msg.includes("auth/account-exists-with-different-credential")) {
         toast.error(
-          "An account with this email already exists with another provider. Please sign in with Google.",
+          "An account with this email already exists with another provider. Please sign in with Google or use a token.",
         );
+      } else if (msg.includes("auth/unauthorized-domain")) {
+        toast.error(
+          "This domain is not in Firebase's Authorized Domains list. Switched to Personal Access Token mode so you can continue!",
+          { duration: 6000 },
+        );
+        setShowPatInput(true);
       } else {
-        toast.error(msg);
+        toast.info(
+          "GitHub OAuth is unavailable on this deploy. Switched to Personal Access Token mode below.",
+          { duration: 6000 },
+        );
+        setShowPatInput(true);
       }
     } finally {
       setLoading(false);
@@ -529,25 +551,52 @@ export function GithubFirebaseAuth({
                   variant="block"
                   disabled={patLoading || !patToken.trim()}
                 >
-                  {patLoading ? <Loader2 className="size-3.5 animate-spin" /> : "Verify"}
+                  {patLoading ? <Loader2 className="size-3.5 animate-spin" /> : "Verify & Continue"}
                 </Button>
               </div>
 
-              <p className="text-[11px] text-muted-foreground">
-                Generate a token with{" "}
-                <code className="font-mono text-foreground font-semibold">repo</code> and{" "}
-                <code className="font-mono text-foreground font-semibold">user:email</code>{" "}
-                permissions at{" "}
-                <a
-                  href="https://github.com/settings/tokens/new?scopes=repo,read:user,user:email&description=Folio%20Portfolio%20Publisher"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-primary underline hover:text-primary/80 font-medium inline-flex items-center gap-0.5"
-                >
-                  github.com/settings/tokens
-                  <ExternalLink className="size-2.5" />
-                </a>
-              </p>
+              {/* 3-Step Token Guide Accordion (Screenshots-as-text) */}
+              <div className="rounded-lg border border-border/80 bg-background/80 p-3 space-y-2 text-xs">
+                <div className="flex items-center justify-between font-bold text-foreground">
+                  <span>How to make a token (Takes 60 seconds):</span>
+                  <a
+                    href="https://github.com/settings/tokens/new?scopes=public_repo,read:user,user:email&description=Folio%20Portfolio%20Publisher"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-primary hover:underline inline-flex items-center gap-1 font-semibold text-[11px]"
+                  >
+                    Open GitHub Tokens <ExternalLink className="size-3" />
+                  </a>
+                </div>
+                <ol className="list-decimal list-inside space-y-1.5 text-muted-foreground text-[11px]">
+                  <li>
+                    Go to{" "}
+                    <strong>
+                      GitHub → Settings → Developer settings → Personal access tokens → Tokens
+                      (classic)
+                    </strong>
+                  </li>
+                  <li>
+                    Click <strong>Generate new token (classic)</strong> → Note:{" "}
+                    <code className="bg-muted px-1 py-0.5 rounded font-mono">Folio</code> →
+                    Expiration: <strong>7 days</strong>
+                  </li>
+                  <li>
+                    Select scope{" "}
+                    <code className="bg-primary/10 text-primary font-bold px-1 py-0.5 rounded font-mono">
+                      public_repo
+                    </code>{" "}
+                    (or <code className="bg-muted px-1 py-0.5 rounded font-mono">repo</code>) →
+                    Click <strong>Generate token</strong> at the bottom → Copy & paste above
+                  </li>
+                </ol>
+                <div className="rounded bg-amber-500/10 border border-amber-500/20 p-2 text-[11px] text-amber-900 dark:text-amber-200">
+                  ⚠️ <strong>Warning:</strong> Never share or screenshot your token. Folio keeps it
+                  in this browser tab only (
+                  <code className="font-mono text-[10px]">sessionStorage</code>) and sends it
+                  directly to <code className="font-mono text-[10px]">api.github.com</code>.
+                </div>
+              </div>
             </form>
           )}
         </div>

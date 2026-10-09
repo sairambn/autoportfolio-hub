@@ -3,7 +3,7 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Global Safety Net - deny all by default
+    // Global Safety Net - deny all unhandled operations by default
     match /{document=**} {
       allow read, write: if false;
     }
@@ -12,29 +12,71 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    function isAdmin() {
+      return isSignedIn() && (
+        request.auth.token.email == 'bnsairam14@gmail.com' ||
+        request.auth.token.email == 'sdesairam@gmail.com'
+      );
+    }
+
     function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
+      return isSignedIn() && (request.auth.uid == userId || isAdmin());
     }
 
     function isValidId(id) {
       return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
     }
 
-    // User Profile Document
+    // Anti-tampering validation for text length and payload sanity
+    function isValidText(val, maxLen) {
+      return val is string && val.size() <= maxLen;
+    }
+
+    // Global placement stats and agency candidates
+    match /global_stats/{statId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    match /placement_candidates/{candidateId} {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn() && isValidId(candidateId);
+      allow delete: if isAdmin();
+    }
+
+    // User Profile Document - Stored with end-to-end access boundaries
     match /users/{userId} {
-      allow get: if isOwner(userId);
-      allow list: if false;
+      allow get: if isOwner(userId) || isAdmin();
+      allow list: if isAdmin();
       allow create: if isOwner(userId) && isValidId(userId);
-      allow update: if isOwner(userId) && isValidId(userId);
-      allow delete: if false;
+      allow update: if (isOwner(userId) || isAdmin()) && isValidId(userId);
+      allow delete: if isAdmin();
 
       // User's portfolios subcollection
       match /portfolios/{portfolioId} {
-        allow get: if (isOwner(userId) || resource.data.published == true) && isValidId(portfolioId);
-        allow delete: if isOwner(userId) && isValidId(portfolioId);
-        allow list: if isOwner(userId);
-        allow create, update: if isOwner(userId) && isValidId(portfolioId);
+        allow get: if (isOwner(userId) || resource.data.published == true || isAdmin()) && isValidId(portfolioId);
+        allow delete: if (isOwner(userId) || isAdmin()) && isValidId(portfolioId);
+        allow list: if isOwner(userId) || isAdmin();
+        allow create, update: if (isOwner(userId) || isAdmin()) && isValidId(portfolioId);
       }
+
+      // User's career roadmap trackers & Google Sheets metadata
+      match /career_trackers/{trackerId} {
+        allow get, list, create, update, delete: if (isOwner(userId) || isAdmin()) && isValidId(trackerId);
+      }
+
+      // Security Audit Logs collection per user
+      match /security_logs/{logId} {
+        allow read: if isOwner(userId) || isAdmin();
+        allow create: if isOwner(userId) || isAdmin();
+        allow update, delete: if false; // Audit logs are immutable
+      }
+    }
+
+    // Collection group for portfolios allowing admin aggregation & public published access
+    match /{path=**}/portfolios/{portfolioId} {
+      allow read: if (resource.data.published == true) || (isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin()));
+      allow list: if isAdmin();
     }
   }
 }

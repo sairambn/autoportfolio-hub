@@ -46,8 +46,15 @@ export interface Content {
   githubUsername: string;
 }
 
-/** Visual themes students can pick. */
+/** Visual themes students can pick (Flagship 7 themes from Folio specification). */
 export type TemplateId =
+  | "paper"
+  | "terminal"
+  | "studio"
+  | "slate"
+  | "blueprint"
+  | "bloom"
+  | "newsprint"
   | "signal"
   | "minimal"
   | "midnight"
@@ -55,7 +62,6 @@ export type TemplateId =
   | "campus"
   | "neon"
   | "mono"
-  | "slate"
   | "rose"
   | "ember"
   | "forest"
@@ -146,6 +152,13 @@ export type TemplateMeta = {
 
 /** Order = display order on create / theme picker. */
 export const TEMPLATE_ORDER: TemplateId[] = [
+  "paper",
+  "terminal",
+  "studio",
+  "slate",
+  "blueprint",
+  "bloom",
+  "newsprint",
   "signal",
   "minimal",
   "midnight",
@@ -153,15 +166,114 @@ export const TEMPLATE_ORDER: TemplateId[] = [
   "campus",
   "neon",
   "mono",
-  "slate",
-  "rose",
-  "ember",
-  "forest",
-  "violet",
-  "sand",
 ];
 
 export const TEMPLATES: Record<TemplateId, TemplateMeta> = {
+  paper: {
+    label: "Paper",
+    blurb: "Warm off-white · serif headings · single-column reading layout",
+    theme: {
+      template: "paper",
+      font: "fraunces",
+      palette: {
+        bg: "#fcfbf7",
+        fg: "#1f1d1a",
+        accent: "#b45309",
+        muted: "#66615b",
+        surface: "#f3ede2",
+      },
+    },
+  },
+  terminal: {
+    label: "Terminal",
+    blurb: "Dark console · monospace accents · repo-style project listings (CSE / IT)",
+    theme: {
+      template: "terminal",
+      font: "mono",
+      palette: {
+        bg: "#0c1017",
+        fg: "#e6edf3",
+        accent: "#22c55e",
+        muted: "#7d8590",
+        surface: "#161b22",
+      },
+    },
+  },
+  studio: {
+    label: "Studio",
+    blurb: "Bold color blocks · oversized display type · asymmetric editorial grid",
+    theme: {
+      template: "studio",
+      font: "syne",
+      palette: {
+        bg: "#f8fafc",
+        fg: "#0f172a",
+        accent: "#6366f1",
+        muted: "#64748b",
+        surface: "#e2e8f0",
+      },
+    },
+  },
+  slate: {
+    label: "Slate",
+    blurb: "Neutral corporate · sidebar layout with photo & contact (MBA / ECE / EEE)",
+    theme: {
+      template: "slate",
+      font: "outfit",
+      palette: {
+        bg: "#f8fafc",
+        fg: "#1e293b",
+        accent: "#2563eb",
+        muted: "#64748b",
+        surface: "#f1f5f9",
+      },
+    },
+  },
+  blueprint: {
+    label: "Blueprint",
+    blurb: "Technical grid background · thin lines · numbered engineering sections (Mech / Aero)",
+    theme: {
+      template: "blueprint",
+      font: "mono",
+      palette: {
+        bg: "#0f172a",
+        fg: "#f8fafc",
+        accent: "#38bdf8",
+        muted: "#94a3b8",
+        surface: "#1e293b",
+      },
+    },
+  },
+  bloom: {
+    label: "Bloom",
+    blurb: "Soft pastel · rounded cards · friendly visual flow (Biotech & Design)",
+    theme: {
+      template: "bloom",
+      font: "outfit",
+      palette: {
+        bg: "#fdf8f6",
+        fg: "#292524",
+        accent: "#f43f5e",
+        muted: "#78716c",
+        surface: "#faece7",
+      },
+    },
+  },
+  newsprint: {
+    label: "Newsprint",
+    blurb: "High-contrast black & white · classic editorial columns",
+    theme: {
+      template: "newsprint",
+      font: "playfair",
+      palette: {
+        bg: "#ffffff",
+        fg: "#000000",
+        accent: "#171717",
+        muted: "#525252",
+        surface: "#f5f5f5",
+      },
+    },
+  },
   signal: {
     label: "Signal",
     blurb: "Cream paper · editorial (like a personal brand site)",
@@ -373,36 +485,15 @@ export const ALL_SECTIONS: SectionType[] = [
 export const uid = () => Math.random().toString(36).slice(2, 10);
 
 export const defaultContent = (): Content => ({
-  name: "Your Name",
-  headline: "Software Engineer · DSA · Python · Java",
-  bio: "I write code that works, practice every day, and ship systems people actually use.",
+  name: "",
+  headline: "",
+  bio: "",
   avatarUrl: "",
-  location: "Jeppiaar Engineering College",
-  skills: ["Python", "Java", "DSA"],
-  projects: [
-    {
-      title: "Project One",
-      description: "A short description of what you built and why it matters.",
-      url: "",
-      tags: "Python · Java",
-    },
-  ],
-  experience: [
-    {
-      role: "Software Engineering Intern",
-      company: "Tech Corp",
-      period: "2024 — Present",
-      description: "Designed distributed backend services and optimized query performance.",
-    },
-  ],
-  education: [
-    {
-      degree: "B.Tech in Computer Science & Engineering",
-      institution: "Jeppiaar Engineering College",
-      period: "2021 — 2025",
-      description: "Focus on Algorithms, Distributed Systems, and Database Architectures.",
-    },
-  ],
+  location: "",
+  skills: [],
+  projects: [],
+  experience: [],
+  education: [],
   contact: { email: "", website: "", github: "", linkedin: "", twitter: "" },
   githubUsername: "",
 });
@@ -410,7 +501,7 @@ export const defaultContent = (): Content => ({
 export const defaultSections = (): Section[] =>
   ALL_SECTIONS.map((type) => ({ id: uid(), type, visible: true }));
 
-export const defaultTheme = (): Theme => structuredClone(TEMPLATES.signal.theme);
+export const defaultTheme = (): Theme => structuredClone(TEMPLATES.paper.theme);
 
 export function normalize(row: { content: unknown; theme: unknown; sections: unknown }) {
   const c = { ...defaultContent(), ...((row.content as Partial<Content>) ?? {}) };
@@ -420,9 +511,9 @@ export function normalize(row: { content: unknown; theme: unknown; sections: unk
   let t = row.theme as Theme | null;
   if (t?.palette) {
     const id = String(t.template || "") as string;
-    if (id === "editorial") t = { ...t, template: "signal" };
-    else if (id === "bold") t = { ...t, template: "neon" };
-    else if (id === "terminal") t = { ...t, template: "mono" };
+    if (id === "editorial") t = { ...t, template: "paper" };
+    else if (id === "signal") t = { ...t, template: "paper" };
+    else if (id === "mono") t = { ...t, template: "terminal" };
     else if (!(id in TEMPLATES)) t = defaultTheme();
   } else {
     t = defaultTheme();

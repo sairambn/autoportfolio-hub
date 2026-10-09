@@ -1,4 +1,5 @@
 import { exportPortfolioHtml } from "./export.functions";
+import { generatePortfolioPdfFromData, type PdfExportOptions } from "./pdf-export";
 
 /** Download a full portfolio as a single index.html file (no GitHub needed). */
 export async function downloadPortfolioHtml(opts: {
@@ -33,4 +34,29 @@ export async function downloadPortfolioHtml(opts: {
   a.click();
   a.remove();
   URL.revokeObjectURL(url);
+}
+
+/** Download a portfolio as a PDF file for offline viewing or printing. */
+export async function downloadPortfolioPdf(opts: {
+  title: string;
+  content: unknown;
+  theme: unknown;
+  sections: unknown;
+  filename?: string;
+  format?: "a4" | "letter";
+  orientation?: "portrait" | "landscape";
+}) {
+  return generatePortfolioPdfFromData(
+    {
+      title: opts.title,
+      content: opts.content,
+      theme: opts.theme,
+      sections: opts.sections,
+    },
+    {
+      filename: opts.filename,
+      format: opts.format || "a4",
+      orientation: opts.orientation || "portrait",
+    },
+  );
 }

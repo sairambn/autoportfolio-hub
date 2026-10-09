@@ -3,13 +3,17 @@ import { useEffect, useRef, useState } from "react";
 import {
   ArrowLeft,
   Check,
+  CheckCircle2,
   Download,
   ExternalLink,
   Eye,
+  FileCode2,
+  FileText,
   Globe,
   Loader2,
   Palette,
   Plus,
+  RefreshCw,
   Save,
   Trash2,
   Upload,
@@ -18,6 +22,8 @@ import {
 import { toast } from "sonner";
 import { PortfolioView } from "@/components/PortfolioView";
 import { GithubFirebaseAuth } from "@/components/GithubFirebaseAuth";
+import { ExportPdfModal } from "@/components/ExportPdfModal";
+import { RoleSkillSuggestions } from "@/components/RoleSkillSuggestions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -74,6 +80,7 @@ function EditorPage() {
   const [newSkill, setNewSkill] = useState("");
   const [busy, setBusy] = useState(false);
   const [deployOpen, setDeployOpen] = useState(false);
+  const [pdfModalOpen, setPdfModalOpen] = useState(false);
   const [githubToken, setGithubToken] = useState("");
   const [repoName, setRepoName] = useState(record?.github_repo ?? "my-portfolio");
   const [activeTab, setActiveTab] = useState("content");
@@ -437,6 +444,38 @@ function EditorPage() {
             className="h-8 max-w-[200px] font-semibold md:max-w-[280px]"
             placeholder="Portfolio Title"
           />
+          {/* GitHub Synchronization State Indicator */}
+          <div className="hidden md:flex items-center ml-1">
+            {busy ? (
+              <span
+                title="Synchronizing changes with GitHub..."
+                className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/50 bg-amber-500/10 px-2.5 py-0.5 text-xs font-bold text-amber-600 dark:text-amber-400 animate-pulse"
+              >
+                <RefreshCw className="size-3 animate-spin" />
+                Syncing
+              </span>
+            ) : record?.published || record?.github_repo ? (
+              <span
+                title={
+                  record?.github_repo
+                    ? `Synchronized with GitHub: ${record.github_repo}`
+                    : "Published live on GitHub Pages"
+                }
+                className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/50 bg-emerald-500/15 px-2.5 py-0.5 text-xs font-bold text-emerald-700 dark:text-emerald-300"
+              >
+                <CheckCircle2 className="size-3" />
+                Published
+              </span>
+            ) : (
+              <span
+                title="Draft — Not yet synced with GitHub repository"
+                className="inline-flex items-center gap-1.5 rounded-full border border-ink/20 bg-muted/60 px-2.5 py-0.5 text-xs font-bold text-muted-foreground"
+              >
+                <FileCode2 className="size-3" />
+                Draft
+              </span>
+            )}
+          </div>
         </div>
 
         <div className="flex items-center gap-2">
@@ -458,6 +497,16 @@ function EditorPage() {
 
           <Button variant="outline" size="sm" onClick={handleDownloadHtml}>
             <Download className="mr-1 size-4" /> Export HTML
+          </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setPdfModalOpen(true)}
+            className="border-primary/50 text-primary hover:bg-primary/10 font-bold"
+            title="Export portfolio as PDF file for offline viewing or printing"
+          >
+            <FileText className="mr-1 size-4" /> Export PDF
           </Button>
 
           <Button variant="default" size="sm" onClick={handleSave}>
@@ -497,13 +546,32 @@ function EditorPage() {
                 </div>
 
                 <div>
-                  <Label>Headline / Title</Label>
+                  <Label>Headline / Role</Label>
                   <Input
                     value={content.headline}
                     onChange={(e) => patchContent({ headline: e.target.value })}
-                    placeholder="e.g. Senior Full-Stack Engineer"
+                    placeholder="e.g. Software Engineer · TypeScript · React"
                     className="mt-1"
                   />
+                  {/* Inline smart recommendation banner if profile matches Software Engineer or related */}
+                  <div className="mt-2">
+                    <RoleSkillSuggestions
+                      profileQuery={content.headline}
+                      activeSkills={content.skills}
+                      onAddSkill={(s) => {
+                        if (!content.skills.includes(s)) {
+                          patchContent({ skills: [...content.skills, s] });
+                          toast.success(`Added ${s} to skills`);
+                        }
+                      }}
+                      onAddMultipleSkills={(skills) => {
+                        const combined = Array.from(new Set([...content.skills, ...skills]));
+                        patchContent({ skills: combined });
+                        toast.success(`Added ${skills.length} skills`);
+                      }}
+                      variant="compact"
+                    />
+                  </div>
                 </div>
 
                 <div>
@@ -607,22 +675,50 @@ function EditorPage() {
                       <Plus className="size-4" />
                     </Button>
                   </div>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {content.skills.map((skill, idx) => (
-                      <span
-                        key={idx}
-                        className="inline-flex items-center gap-1 rounded-full border bg-secondary px-3 py-1 text-xs font-medium"
-                      >
-                        {skill}
-                        <button
-                          type="button"
-                          onClick={() => removeSkill(idx)}
-                          className="hover:text-destructive"
+
+                  {/* Role-based Smart Suggestions (Software Engineer flagship + all tech disciplines) */}
+                  <div className="mt-4">
+                    <RoleSkillSuggestions
+                      profileQuery={
+                        content.headline || content.experience?.[0]?.role || "Software Engineer"
+                      }
+                      activeSkills={content.skills}
+                      onAddSkill={(s) => {
+                        if (!content.skills.includes(s)) {
+                          patchContent({ skills: [...content.skills, s] });
+                          toast.success(`Added ${s} to skills`);
+                        }
+                      }}
+                      onAddMultipleSkills={(skills) => {
+                        const combined = Array.from(new Set([...content.skills, ...skills]));
+                        patchContent({ skills: combined });
+                        toast.success(`Added ${skills.length} skills`);
+                      }}
+                      variant="detailed"
+                    />
+                  </div>
+
+                  <div className="mt-4">
+                    <Label className="mb-2 block text-xs font-semibold text-muted-foreground">
+                      Active Skills ({content.skills.length})
+                    </Label>
+                    <div className="flex flex-wrap gap-2">
+                      {content.skills.map((skill, idx) => (
+                        <span
+                          key={idx}
+                          className="inline-flex items-center gap-1 rounded-full border bg-secondary px-3 py-1 text-xs font-medium"
                         >
-                          ×
-                        </button>
-                      </span>
-                    ))}
+                          {skill}
+                          <button
+                            type="button"
+                            onClick={() => removeSkill(idx)}
+                            className="hover:text-destructive"
+                          >
+                            ×
+                          </button>
+                        </span>
+                      ))}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -932,6 +1028,7 @@ function EditorPage() {
         {/* Right Side: Live Preview Canvas */}
         <div className="hidden flex-1 items-center justify-center overflow-y-auto bg-muted/30 p-6 md:flex">
           <div
+            id="portfolio-editor-preview-container"
             className={`transition-all duration-300 ${
               previewDevice === "mobile"
                 ? "h-[740px] w-[375px] overflow-y-auto rounded-[36px] border-[10px] border-ink bg-background shadow-2xl"
@@ -1021,6 +1118,19 @@ function EditorPage() {
           </div>
         </div>
       )}
+
+      {/* PDF Export & Print Modal */}
+      <ExportPdfModal
+        open={pdfModalOpen}
+        onClose={() => setPdfModalOpen(false)}
+        title={title}
+        slug={record?.slug}
+        content={content}
+        theme={theme}
+        sections={record?.sections}
+        repos={repos.data ?? null}
+        targetElementId="portfolio-editor-preview-container"
+      />
     </div>
   );
 }

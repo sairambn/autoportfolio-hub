@@ -67,7 +67,7 @@ export async function renderPortfolioHtml(row: {
     '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>',
     `<link rel="stylesheet" href="${googleFontsHref(theme.font)}">`,
     '<script src="https://cdn.tailwindcss.com"></script>',
-    `<style>html,body{margin:0;padding:0;background:${bg};min-height:100%;font-family:sans-serif}</style>`,
+    `<style>html,body{margin:0;padding:0;background:${bg};min-height:100%;font-family:sans-serif;scroll-behavior:smooth;scroll-padding-top:80px}</style>`,
     "</head>",
     `<body>${body}</body>`,
     "</html>",

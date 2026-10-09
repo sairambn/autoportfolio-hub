@@ -7,6 +7,7 @@ import {
   type Section,
   type Theme,
 } from "./portfolio";
+import { sanitizeObject, logSecurityEvent, computeDataHash } from "./security";
 
 export type PortfolioRecord = {
   id: string;
@@ -175,21 +176,37 @@ export function updatePortfolio(
   const list = readAll(login);
   const i = list.findIndex((p) => p.id === id);
   if (i < 0) return null;
-  list[i] = { ...list[i], ...patch, updated_at: new Date().toISOString() };
+
+  // Anti-XSS sanitization
+  const sanitizedPatch = sanitizeObject(patch);
+
+  list[i] = { ...list[i], ...sanitizedPatch, updated_at: new Date().toISOString() };
   writeAll(login, list);
+
+  // Compute security data integrity hash
+  computeDataHash(list[i]).then((hash) => {
+    logSecurityEvent(
+      "DATA_SAVED",
+      `Portfolio record '${sanitizedPatch.title || list[i].title}' saved with SHA-256 data hash protection.`,
+      "success",
+      hash,
+    );
+  });
+
   return list[i];
 }
 
 export function upsertPortfolio(login: string, record: PortfolioRecord): PortfolioRecord {
+  const sanitizedRecord = sanitizeObject(record);
   const list = readAll(login);
-  const i = list.findIndex((p) => p.id === record.id);
+  const i = list.findIndex((p) => p.id === sanitizedRecord.id);
   if (i >= 0) {
-    list[i] = { ...list[i], ...record };
+    list[i] = { ...list[i], ...sanitizedRecord };
   } else {
-    list.unshift(record);
+    list.unshift(sanitizedRecord);
   }
   writeAll(login, list);
-  return record;
+  return sanitizedRecord;
 }
 
 export function deletePortfolio(login: string, id: string) {

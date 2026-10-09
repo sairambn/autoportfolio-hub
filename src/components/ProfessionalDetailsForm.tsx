@@ -33,6 +33,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PortfolioView } from "@/components/PortfolioView";
 import { LivePortfolioPreview } from "@/components/LivePortfolioPreview";
+import { RoleSkillSuggestions } from "@/components/RoleSkillSuggestions";
 import {
   defaultContent,
   defaultSections,
@@ -328,6 +329,23 @@ export function ProfessionalDetailsForm({
     }
     setContent((prev) => ({ ...prev, skills: [...prev.skills, s] }));
     if (!skillName) setNewSkill("");
+  }
+
+  function addMultipleSkills(skillsToAdd: string[]) {
+    if (!skillsToAdd.length) return;
+    setContent((prev) => {
+      const existing = new Set(prev.skills.map((s) => s.toLowerCase()));
+      const toAdd = skillsToAdd.filter((s) => !existing.has(s.trim().toLowerCase()));
+      if (toAdd.length === 0) {
+        toast.info("All selected skills are already in your portfolio");
+        return prev;
+      }
+      toast.success(`Added ${toAdd.length} skills to portfolio`);
+      return {
+        ...prev,
+        skills: [...prev.skills, ...toAdd],
+      };
+    });
   }
 
   function removeSkill(idx: number) {
@@ -643,11 +661,21 @@ export function ProfessionalDetailsForm({
               </div>
 
               <div className="space-y-1.5">
-                <Label className="font-bold">Professional Headline *</Label>
+                <Label className="font-bold">Professional Headline / Role *</Label>
                 <Input
                   value={content.headline}
                   onChange={(e) => patchContent({ headline: e.target.value })}
-                  placeholder="e.g. Senior Software Engineer · Distributed Systems · React · Python"
+                  placeholder="e.g. Software Engineer · React · Node.js · Distributed Systems"
+                />
+
+                {/* Recommended Skills Suggestions automatically appear when headline matches Software Engineer */}
+                <RoleSkillSuggestions
+                  profileQuery={content.headline}
+                  activeSkills={content.skills}
+                  onAddSkill={addSkill}
+                  onAddMultipleSkills={addMultipleSkills}
+                  variant="banner"
+                  onSwitchToSkillsTab={() => setActiveTab("skills")}
                 />
               </div>
 
@@ -902,40 +930,16 @@ export function ProfessionalDetailsForm({
                 </div>
               </div>
 
-              {/* Quick skill suggestions */}
-              <div className="space-y-2">
-                <span className="text-xs font-semibold text-muted-foreground">
-                  Quick Suggestions:
-                </span>
-                <div className="flex flex-wrap gap-1.5">
-                  {[
-                    "Python",
-                    "Java",
-                    "DSA",
-                    "TypeScript",
-                    "React",
-                    "Next.js",
-                    "Node.js",
-                    "Docker",
-                    "PostgreSQL",
-                    "AWS",
-                    "TailwindCSS",
-                    "GraphQL",
-                    "PyTorch",
-                    "Git",
-                  ].map((s) => (
-                    <button
-                      key={s}
-                      type="button"
-                      onClick={() => addSkill(s)}
-                      disabled={content.skills.includes(s)}
-                      className="rounded border border-ink/30 bg-card px-2.5 py-1 text-xs font-semibold hover:border-ink hover:bg-accent disabled:opacity-40"
-                    >
-                      + {s}
-                    </button>
-                  ))}
-                </div>
-              </div>
+              {/* Role-based Smart Suggestions (Software Engineer flagship + all tech disciplines) */}
+              <RoleSkillSuggestions
+                profileQuery={
+                  content.headline || content.experience?.[0]?.role || "Software Engineer"
+                }
+                activeSkills={content.skills}
+                onAddSkill={addSkill}
+                onAddMultipleSkills={addMultipleSkills}
+                variant="detailed"
+              />
 
               {/* Current Skills list */}
               <div className="rounded-lg border-2 border-ink bg-muted/20 p-4">
