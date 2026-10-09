@@ -36,7 +36,7 @@ export function AdminGlobalMetricsView({
   currentEmail,
   onSwitchToPersonalPortfolios,
 }: AdminGlobalMetricsViewProps) {
-  const [candidates, setCandidates] = useState<PlacementCandidateDoc[]>(SEED_PLATFORM_CANDIDATES);
+  const [candidates, setCandidates] = useState<PlacementCandidateDoc[]>([]);
   const [loading, setLoading] = useState(true);
   const [liveSyncActive, setLiveSyncActive] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -44,17 +44,12 @@ export function AdminGlobalMetricsView({
   const [selectedDept, setSelectedDept] = useState<string>("all");
   const [viewMode, setViewMode] = useState<"summary" | "matrix" | "roster">("summary");
 
-  // Subscribe to real-time candidate portfolios from Firestore
+  // Subscribe to real-time candidate portfolios strictly from Firestore
   useEffect(() => {
     setLoading(true);
     const unsub = subscribePlacementCandidates(
       (liveList) => {
-        const idMap = new Map<string, PlacementCandidateDoc>();
-        // First populate seeds
-        SEED_PLATFORM_CANDIDATES.forEach((c) => idMap.set(c.id, c));
-        // Overlay any live items from Firestore
-        liveList.forEach((c) => idMap.set(c.id, c));
-        setCandidates(Array.from(idMap.values()));
+        setCandidates(liveList);
         setLiveSyncActive(true);
         setLoading(false);
       },

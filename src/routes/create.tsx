@@ -542,8 +542,8 @@ function CreateWizard() {
           <Link to="/" className="font-display text-2xl font-black italic">
             Folio.
           </Link>
-          <span className="hidden sm:inline-block text-xs font-semibold px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
-            Resume → Live Website
+          <span className="hidden sm:inline-block text-xs font-medium text-muted-foreground">
+            · Resume → Live Website
           </span>
         </div>
 
@@ -551,8 +551,8 @@ function CreateWizard() {
           <CyberSecurityCenter triggerText="Security Shield" />
           {/* User Sign-In Status */}
           {isLoggedIn ? (
-            <div className="flex items-center gap-2 rounded-full border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-800">
-              <span className="size-2 rounded-full bg-emerald-500 animate-pulse" />
+            <div className="flex items-center gap-1.5 rounded-lg border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-800">
+              <UserIcon className="size-3.5 text-emerald-600" />
               <span className="truncate max-w-[140px]">
                 {session?.user?.name || session?.user?.login}
               </span>

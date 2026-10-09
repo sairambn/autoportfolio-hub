@@ -429,9 +429,8 @@ export function UserDashboard({
           <div className="flex items-center gap-2 sm:gap-3">
             <CyberSecurityCenter triggerText="Security Shield" />
             {isAdminUser && (
-              <span className="hidden sm:inline-flex items-center gap-1 rounded-full border border-primary/40 bg-primary/10 px-2.5 py-0.5 text-xs font-bold text-primary">
-                <ShieldCheck className="size-3.5" />
-                Admin
+              <span className="hidden sm:inline-block text-xs font-medium text-muted-foreground">
+                · Admin
               </span>
             )}
             <div className="flex items-center gap-2 rounded-full border-2 border-ink bg-card px-2.5 sm:px-3 py-1 shadow-[2px_2px_0_0_oklch(0.2_0.02_60)]">

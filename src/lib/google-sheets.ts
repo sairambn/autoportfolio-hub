@@ -332,58 +332,7 @@ export const INITIAL_ROADMAP_DATA: RoadmapDepartmentItem[] = [
   },
 ];
 
-export const INITIAL_APPLICATION_PIPELINE: ApplicationTrackerRow[] = [
-  {
-    company: "Google",
-    role: "Software Engineer (L3 / New Grad)",
-    tier: "Tier 1 (FAANG/Google)",
-    jobUrl: "https://careers.google.com/jobs/results/",
-    appliedDate: "Target: Aug 2026",
-    referralContact: "Senior SWE / Alumni Connection",
-    status: "Wishlist",
-    notes: "Requires deep DSA (Graphs/DP), clean modular code, Googliness cultural round.",
-  },
-  {
-    company: "Microsoft",
-    role: "Software Engineer 1 (Core Services)",
-    tier: "Tier 1 (FAANG/Google)",
-    jobUrl: "https://careers.microsoft.com/",
-    appliedDate: "Target: Aug 2026",
-    referralContact: "Principal PM / Team Member",
-    status: "Wishlist",
-    notes: "Focus on Trees, Graphs, OOP Principles, and OS/Threading concurrency.",
-  },
-  {
-    company: "Uber",
-    role: "Software Engineer 1 (Distributed Systems)",
-    tier: "Tier 1.5 (Uber/Stripe/Atlassian)",
-    jobUrl: "https://www.uber.com/us/en/careers/",
-    appliedDate: "Target: Sep 2026",
-    referralContact: "Tech Lead on LinkedIn",
-    status: "Wishlist",
-    notes: "High emphasis on System Design basics, concurrency, and real-time backend.",
-  },
-  {
-    company: "Amazon",
-    role: "Software Development Engineer 1",
-    tier: "Tier 1 (FAANG/Google)",
-    jobUrl: "https://www.amazon.jobs/",
-    appliedDate: "Target: Sep 2026",
-    referralContact: "University Recruiter",
-    status: "Wishlist",
-    notes: "Strict 16 Leadership Principles (Customer Obsession, Ownership, Bias for Action).",
-  },
-  {
-    company: "Stripe",
-    role: "Software Engineer (Infrastructure)",
-    tier: "Tier 1.5 (Uber/Stripe/Atlassian)",
-    jobUrl: "https://stripe.com/jobs",
-    appliedDate: "Target: Oct 2026",
-    referralContact: "Staff Engineer referral",
-    status: "Wishlist",
-    notes: "Practical programming rounds: building real features, debugging large codebases.",
-  },
-];
+export const INITIAL_APPLICATION_PIPELINE: ApplicationTrackerRow[] = [];
 
 /**
  * Creates the complete Google Spreadsheet using Google Sheets API v4

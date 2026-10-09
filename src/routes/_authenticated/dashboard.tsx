@@ -138,9 +138,8 @@ function AuthenticatedDashboardRoute() {
           <Link to="/" className="font-display text-2xl font-black italic">
             Folio.
           </Link>
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-2.5 py-0.5 text-xs font-bold text-primary">
-            <ShieldCheck className="size-3.5" />
-            Admin Suite
+          <span className="hidden sm:inline-block text-xs font-medium text-muted-foreground">
+            · Admin Suite
           </span>
         </div>
 

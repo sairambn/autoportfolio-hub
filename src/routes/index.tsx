@@ -89,16 +89,18 @@ function Landing() {
 
       {/* Hero Section - Mobile & Computer Scaling */}
       <header className="mx-auto max-w-6xl px-4 sm:px-6 pb-16 pt-10 sm:pb-20 sm:pt-16">
-        <div className="flex flex-wrap items-center gap-2 mb-6">
-          <p className="animate-rise inline-block rounded-full border-2 border-ink bg-accent px-3.5 py-1 text-xs sm:text-sm font-semibold">
-            Photo + resume → live website
-          </p>
-          <span className="animate-rise inline-flex items-center gap-1 rounded-full border-2 border-emerald-300 bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-800">
-            <Sparkles className="size-3.5" /> Lifelong Free Gemini AI
+        <div className="flex flex-wrap items-center gap-3 mb-6 text-xs sm:text-sm font-semibold text-muted-foreground">
+          <span className="text-foreground font-bold flex items-center gap-1.5">
+            <Sparkles className="size-4 text-emerald-600 inline" /> Photo + Resume → Live Website
           </span>
-          <span className="animate-rise inline-flex items-center gap-1 rounded-full border-2 border-primary/30 bg-primary/10 px-3 py-1 text-xs font-bold text-primary">
-            <Building2 className="size-3.5" /> Career Roadmap & Executive Analytics
+          <span aria-hidden="true" className="text-muted-foreground/50">
+            ·
           </span>
+          <span>Lifelong Free Gemini AI</span>
+          <span aria-hidden="true" className="text-muted-foreground/50">
+            ·
+          </span>
+          <span>Career Roadmap & Executive Analytics</span>
         </div>
 
         <h1 className="animate-rise max-w-4xl text-4xl sm:text-6xl md:text-8xl font-black leading-[0.98] sm:leading-[0.95] tracking-tight">
