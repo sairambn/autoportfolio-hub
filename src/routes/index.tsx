@@ -96,10 +96,6 @@ function Landing() {
           <span aria-hidden="true" className="text-muted-foreground/50">
             ·
           </span>
-          <span>Lifelong Free Gemini AI</span>
-          <span aria-hidden="true" className="text-muted-foreground/50">
-            ·
-          </span>
           <span>Career Roadmap & Executive Analytics</span>
         </div>
 
